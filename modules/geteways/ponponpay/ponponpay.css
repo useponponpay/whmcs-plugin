@@ -1,0 +1,228 @@
+/**
+ * PonponPay Styles
+ * 支付页面样式
+ */
+
+.coinpay-payment-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.coinpay-payment-info h4 {
+    color: #495057;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+.coinpay-payment-detail {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.coinpay-payment-detail .row {
+    margin-bottom: 10px;
+}
+
+.coinpay-payment-detail .row:last-child {
+    margin-bottom: 0;
+}
+
+.coinpay-payment-detail strong {
+    color: #343a40;
+}
+
+.coinpay-address {
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.coinpay-amount {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    color: #28a745;
+    font-size: 16px;
+}
+
+.coinpay-copy-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    margin-left: 5px;
+}
+
+.coinpay-timer {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.coinpay-timer.expired {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.coinpay-timer .time {
+    font-weight: bold;
+    font-size: 18px;
+    color: #856404;
+}
+
+.coinpay-timer.expired .time {
+    color: #721c24;
+}
+
+.coinpay-qr-section {
+    text-align: center;
+    padding: 15px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.coinpay-qr-code {
+    max-width: 200px;
+    height: auto;
+    margin: 10px 0;
+}
+
+.coinpay-actions {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.coinpay-actions .btn {
+    margin: 5px;
+}
+
+.coinpay-status {
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    margin-bottom: 15px;
+    font-weight: 500;
+}
+
+.coinpay-status.pending {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+.coinpay-status.paid {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.coinpay-status.expired {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.coinpay-status.failed {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.coinpay-network-badge {
+    display: inline-block;
+    background: #6f42c1;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.coinpay-network-badge.tron {
+    background: #ff0013;
+}
+
+.coinpay-network-badge.ethereum {
+    background: #627eea;
+}
+
+.coinpay-network-badge.polygon {
+    background: #8247e5;
+}
+
+.coinpay-network-badge.bsc {
+    background: #f3ba2f;
+    color: #000;
+}
+
+.coinpay-progress {
+    margin: 15px 0;
+}
+
+.coinpay-progress .progress {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.coinpay-messages {
+    margin-bottom: 15px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .coinpay-payment-info {
+        padding: 15px;
+        margin: 10px 0;
+    }
+
+    .coinpay-address {
+        font-size: 12px;
+        padding: 6px;
+    }
+
+    .coinpay-amount {
+        font-size: 14px;
+    }
+
+    .coinpay-qr-code {
+        max-width: 150px;
+    }
+
+    .coinpay-actions .btn {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+    }
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+    .coinpay-payment-info {
+        background: #343a40;
+        border-color: #495057;
+        color: #f8f9fa;
+    }
+
+    .coinpay-payment-detail {
+        background: #495057;
+        border-color: #6c757d;
+        color: #f8f9fa;
+    }
+
+    .coinpay-address {
+        background: #6c757d;
+        color: #f8f9fa;
+    }
+}

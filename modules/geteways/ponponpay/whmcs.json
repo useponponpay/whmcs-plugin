@@ -1,0 +1,20 @@
+{
+  "schema": "1.0",
+  "type": "whmcs-gateways",
+  "name": "ponponpay",
+  "license": "proprietary",
+  "category": "payments",
+  "description": {
+    "name": "PonponPay",
+    "tagline": "A professional crypto payment gateway supporting multi-chain, multi-currency settlement."
+  },
+  "support": {
+    "docs_url": "https://docs.ponponpay.com/"
+  },
+  "authors": [
+    {
+      "name": "PonponPay",
+      "homepage": "https://ponponpay.com/"
+    }
+  ]
+}
