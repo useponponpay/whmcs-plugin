@@ -1,85 +1,85 @@
 <?php
 /**
  * PonponPay Admin Functions
- * 管理员后台操作功能
+ * Admin backend operation functions
  */
 
 require_once '../../../init.php';
 
 use WHMCS\Database\Capsule;
 
-// 检查管理员权限
+// Check admin permission
 if (!isset($_SESSION['adminid'])) {
     die('Access denied');
 }
 
 /**
- * 检查支付状态
+ * Check payment status
  */
 function adminCheckPaymentStatus()
 {
     $invoiceId = $_POST['invoice_id'] ?? 0;
 
     if (!$invoiceId) {
-        echo json_encode(['success' => false, 'message' => '缺少发票ID']);
+        echo json_encode(['success' => false, 'message' => 'Missing invoice ID']);
         return;
     }
 
-    // 获取发票信息
+    // Get invoice info
     $invoice = Capsule::table('tblinvoices')->find($invoiceId);
 
     if (!$invoice) {
-        echo json_encode(['success' => false, 'message' => '发票不存在']);
+        echo json_encode(['success' => false, 'message' => 'Invoice not found']);
         return;
     }
 
-    // 检查是否使用ponponpay支付
+    // Check if using ponponpay payment
     if ($invoice->paymentmethod !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => '该发票未使用PonponPay支付']);
+        echo json_encode(['success' => false, 'message' => 'This invoice is not using PonponPay payment']);
         return;
     }
 
-    // 从备注中提取订单号（兼容旧版 coinpay 前缀）
+    // Extract order number from notes (compatible with legacy coinpay prefix)
     preg_match('/ponponpay_order:([^,\s]+)/', $invoice->notes, $matches);
     $orderNo = $matches[1] ?? '';
 
     if (!$orderNo) {
-        echo json_encode(['success' => false, 'message' => '未找到PonponPay订单号']);
+        echo json_encode(['success' => false, 'message' => 'PonponPay order number not found']);
         return;
     }
 
-    // 获取网关配置
+    // Get gateway configuration
     $config = getGatewayVariables('ponponpay');
 
     if (empty($config) || $config['type'] !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'PonponPay网关未配置']);
+        echo json_encode(['success' => false, 'message' => 'PonponPay gateway not configured']);
         return;
     }
 
-    // 加载API类
+    // Load API class
     require_once dirname(__FILE__) . '/lib/PonponPayApi.php';
 
     try {
         $apiUrl = $config['test_mode'] ? $config['test_api_url'] : $config['api_url'];
         $api = new PonponPayApi($config['api_key'], $apiUrl);
 
-        // 查询订单状态
+        // Query order status
         $result = $api->queryOrder($orderNo);
 
         if (!$result || !isset($result['status'])) {
-            echo json_encode(['success' => false, 'message' => 'API响应无效']);
+            echo json_encode(['success' => false, 'message' => 'Invalid API response']);
             return;
         }
 
         $status = $result['status'];
         $statusText = [
-            'pending' => '等待支付',
-            'paid' => '支付成功',
-            'failed' => '支付失败',
-            'expired' => '已过期'
+            'pending' => 'Pending payment',
+            'paid' => 'Payment successful',
+            'failed' => 'Payment failed',
+            'expired' => 'Expired'
         ];
 
-        // 如果状态是已支付但发票未付款，则更新发票状态
+        // If status is paid but invoice is unpaid, update invoice status
         if ($status === 'paid' && $invoice->status !== 'Paid') {
             $txHash = $result['tx_hash'] ?? '';
             $actualAmount = $result['actual_amount'] ?? $invoice->total;
@@ -93,10 +93,10 @@ function adminCheckPaymentStatus()
             );
 
             if ($success) {
-                logActivity("管理员手动确认PonponPay支付 - 发票ID: {$invoiceId}, 订单号: {$orderNo}");
+                logActivity("Admin manually confirmed PonponPay payment - Invoice ID: {$invoiceId}, Order No: {$orderNo}");
                 echo json_encode([
                     'success' => true,
-                    'message' => '支付状态已更新为已付款',
+                    'message' => 'Payment status updated to paid',
                     'data' => [
                         'status' => $status,
                         'status_text' => $statusText[$status],
@@ -105,14 +105,14 @@ function adminCheckPaymentStatus()
                     ]
                 ]);
             } else {
-                echo json_encode(['success' => false, 'message' => '更新发票状态失败']);
+                echo json_encode(['success' => false, 'message' => 'Failed to update invoice status']);
             }
         } else {
             echo json_encode([
                 'success' => true,
                 'data' => [
                     'status' => $status,
-                    'status_text' => $statusText[$status] ?? '未知状态',
+                    'status_text' => $statusText[$status] ?? 'Unknown status',
                     'tx_hash' => $result['tx_hash'] ?? '',
                     'actual_amount' => $result['actual_amount'] ?? 0,
                     'updated' => false
@@ -121,31 +121,31 @@ function adminCheckPaymentStatus()
         }
 
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'API请求失败: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'API request failed: ' . $e->getMessage()]);
     }
 }
 
 /**
- * 获取交易详情
+ * Get transaction details
  */
 function getTransactionDetails()
 {
     $invoiceId = $_POST['invoice_id'] ?? 0;
 
     if (!$invoiceId) {
-        echo json_encode(['success' => false, 'message' => '缺少发票ID']);
+        echo json_encode(['success' => false, 'message' => 'Missing invoice ID']);
         return;
     }
 
-    // 获取发票信息
+    // Get invoice info
     $invoice = Capsule::table('tblinvoices')->find($invoiceId);
 
     if (!$invoice || $invoice->paymentmethod !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => '发票不存在或未使用PonponPay支付']);
+        echo json_encode(['success' => false, 'message' => 'Invoice not found or not using PonponPay payment']);
         return;
     }
 
-    // 获取支付记录
+    // Get payment records
     $payments = Capsule::table('tblaccounts')
         ->where('invoiceid', $invoiceId)
         ->where('gateway', 'ponponpay')
@@ -175,14 +175,14 @@ function getTransactionDetails()
 }
 
 /**
- * 测试API连接
+ * Test API connection
  */
 function testApiConnection()
 {
     $config = getGatewayVariables('ponponpay');
 
     if (empty($config) || $config['type'] !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'PonponPay网关未配置']);
+        echo json_encode(['success' => false, 'message' => 'PonponPay gateway not configured']);
         return;
     }
 
@@ -197,22 +197,22 @@ function testApiConnection()
         if ($result['success']) {
             echo json_encode([
                 'success' => true,
-                'message' => 'API连接成功',
+                'message' => 'API connection successful',
                 'data' => $result['data']
             ]);
         } else {
             echo json_encode([
                 'success' => false,
-                'message' => 'API连接失败: ' . $result['error']
+                'message' => 'API connection failed: ' . $result['error']
             ]);
         }
 
     } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'API连接异常: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'API connection error: ' . $e->getMessage()]);
     }
 }
 
-// 处理请求
+// Handle request
 $action = $_POST['action'] ?? '';
 
 switch ($action) {
@@ -229,6 +229,6 @@ switch ($action) {
         break;
 
     default:
-        echo json_encode(['success' => false, 'message' => '无效的操作']);
+        echo json_encode(['success' => false, 'message' => 'Invalid action']);
         break;
 }

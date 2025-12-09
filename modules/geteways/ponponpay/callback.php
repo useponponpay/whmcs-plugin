@@ -1,20 +1,20 @@
 <?php
 /**
  * PonponPay Callback Handler
- * 处理支付回调和状态检查
+ * Handle payment callbacks and status checks
  */
 
 require_once '../../../init.php';
 
 use WHMCS\Database\Capsule;
 
-// 安全检查
+// Security check
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
 /**
- * 获取支付网关配置
+ * Get payment gateway configuration
  */
 function getPonponPayConfig() {
     $gatewayParams = getGatewayVariables('ponponpay');
@@ -22,14 +22,14 @@ function getPonponPayConfig() {
 }
 
 /**
- * 记录日志
+ * Log transaction
  */
 function ponponpayLog($message, $data = []) {
     logTransaction('ponponpay', $data, $message);
 }
 
 /**
- * 验证回调签名
+ * Verify callback signature
  */
 function verifyCallbackSignature($data, $signature, $apiKey) {
     $computedSignature = hash_hmac('sha256', json_encode($data), $apiKey);
@@ -37,7 +37,7 @@ function verifyCallbackSignature($data, $signature, $apiKey) {
 }
 
 /**
- * 处理支付回调
+ * Handle payment callback
  */
 function handlePaymentCallback() {
     $config = getPonponPayConfig();
@@ -47,7 +47,7 @@ function handlePaymentCallback() {
         die('Gateway not configured');
     }
 
-    // 获取回调数据
+    // Get callback data
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
 
@@ -56,16 +56,16 @@ function handlePaymentCallback() {
         die('Invalid JSON data');
     }
 
-    // 验证签名
+    // Verify signature
     $signature = $_SERVER['HTTP_X_PONPONPAY_SIGNATURE']
         ?? '';
     if (!verifyCallbackSignature($data, $signature, $config['api_key'])) {
-        ponponpayLog('回调签名验证失败', $data);
+        ponponpayLog('Callback signature verification failed', $data);
         http_response_code(401);
         die('Invalid signature');
     }
 
-    // 处理不同类型的回调
+    // Handle different callback types
     $orderNo = $data['order_no'] ?? '';
     $status = $data['status'] ?? '';
     $txHash = $data['tx_hash'] ?? '';
@@ -76,7 +76,7 @@ function handlePaymentCallback() {
         die('Missing order number');
     }
 
-    // 查找对应的发票
+    // Find corresponding invoice
     $invoice = Capsule::table('tblinvoices')
         ->where(function ($query) use ($orderNo) {
             $query->where('notes', 'LIKE', "%ponponpay_order:{$orderNo}%");
@@ -84,43 +84,43 @@ function handlePaymentCallback() {
         ->first();
 
     if (!$invoice) {
-        ponponpayLog('未找到对应发票', ['order_no' => $orderNo]);
+        ponponpayLog('Invoice not found', ['order_no' => $orderNo]);
         http_response_code(404);
         die('Invoice not found');
     }
 
     $invoiceId = $invoice->id;
 
-    // 根据状态处理
+    // Handle based on status
     switch ($status) {
         case 'paid':
-            // 检查是否已经支付
+            // Check if already paid
             if ($invoice->status === 'Paid') {
-                ponponpayLog('发票已支付，忽略重复回调', ['invoice_id' => $invoiceId, 'order_no' => $orderNo]);
+                ponponpayLog('Invoice already paid, ignoring duplicate callback', ['invoice_id' => $invoiceId, 'order_no' => $orderNo]);
                 break;
             }
 
-            // 标记为已支付
+            // Mark as paid
             $success = addInvoicePayment(
                 $invoiceId,
-                $txHash, // 交易ID
+                $txHash, // Transaction ID
                 $actualAmount,
-                0, // 手续费
+                0, // Fee
                 'ponponpay'
             );
 
             if ($success) {
-                ponponpayLog('支付成功', [
+                ponponpayLog('Payment successful', [
                     'invoice_id' => $invoiceId,
                     'order_no' => $orderNo,
                     'tx_hash' => $txHash,
                     'amount' => $actualAmount
                 ]);
 
-                // 发送支付确认邮件
+                // Send payment confirmation email
                 sendMessage('Invoice Payment Confirmation', $invoice->userid);
             } else {
-                ponponpayLog('支付处理失败', [
+                ponponpayLog('Payment processing failed', [
                     'invoice_id' => $invoiceId,
                     'order_no' => $orderNo
                 ]);
@@ -129,7 +129,7 @@ function handlePaymentCallback() {
 
         case 'failed':
         case 'expired':
-            ponponpayLog('支付失败或过期', [
+            ponponpayLog('Payment failed or expired', [
                 'invoice_id' => $invoiceId,
                 'order_no' => $orderNo,
                 'status' => $status
@@ -137,7 +137,7 @@ function handlePaymentCallback() {
             break;
 
         default:
-            ponponpayLog('未知支付状态', [
+            ponponpayLog('Unknown payment status', [
                 'invoice_id' => $invoiceId,
                 'order_no' => $orderNo,
                 'status' => $status
@@ -145,46 +145,46 @@ function handlePaymentCallback() {
             break;
     }
 
-    // 返回成功响应
+    // Return success response
     echo json_encode(['success' => true]);
 }
 
 /**
- * 检查支付状态
+ * Check payment status
  */
 function checkPaymentStatus() {
     $invoiceId = $_POST['invoice_id'] ?? 0;
 
     if (!$invoiceId) {
-        echo json_encode(['success' => false, 'message' => '缺少发票ID']);
+        echo json_encode(['success' => false, 'message' => 'Missing invoice ID']);
         return;
     }
 
     $config = getPonponPayConfig();
 
     if (empty($config) || $config['type'] !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => '网关未配置']);
+        echo json_encode(['success' => false, 'message' => 'Gateway not configured']);
         return;
     }
 
-    // 查找发票
+    // Find invoice
     $invoice = Capsule::table('tblinvoices')->find($invoiceId);
 
     if (!$invoice) {
-        echo json_encode(['success' => false, 'message' => '发票不存在']);
+        echo json_encode(['success' => false, 'message' => 'Invoice not found']);
         return;
     }
 
-    // 从备注中提取订单号
+    // Extract order number from notes
     preg_match('/ponponpay_order:([^,\s]+)/', $invoice->notes, $matches);
     $orderNo = $matches[1] ?? '';
 
     if (!$orderNo) {
-        echo json_encode(['success' => false, 'message' => '订单号不存在']);
+        echo json_encode(['success' => false, 'message' => 'Order number not found']);
         return;
     }
 
-    // 调用API检查状态
+    // Call API to check status
     $apiUrl = $config['test_mode'] ? $config['test_api_url'] : $config['api_url'];
     $checkUrl = rtrim($apiUrl, '/') . '/order/status';
 
@@ -198,7 +198,7 @@ function checkPaymentStatus() {
     ]);
 
     if (is_wp_error($response)) {
-        echo json_encode(['success' => false, 'message' => '网络请求失败']);
+        echo json_encode(['success' => false, 'message' => 'Network request failed']);
         return;
     }
 
@@ -206,30 +206,30 @@ function checkPaymentStatus() {
     $data = json_decode($body, true);
 
     if (!$data || !isset($data['status'])) {
-        echo json_encode(['success' => false, 'message' => '响应数据无效']);
+        echo json_encode(['success' => false, 'message' => 'Invalid response data']);
         return;
     }
 
-    // 根据状态返回结果
+    // Return result based on status
     $statusText = [
-        'pending' => '等待支付',
-        'paid' => '支付成功',
-        'failed' => '支付失败',
-        'expired' => '已过期'
+        'pending' => 'Pending payment',
+        'paid' => 'Payment successful',
+        'failed' => 'Payment failed',
+        'expired' => 'Expired'
     ];
 
     echo json_encode([
         'success' => true,
         'data' => [
             'status' => $data['status'],
-            'status_text' => $statusText[$data['status']] ?? '未知状态',
+            'status_text' => $statusText[$data['status']] ?? 'Unknown status',
             'tx_hash' => $data['tx_hash'] ?? '',
             'actual_amount' => $data['actual_amount'] ?? 0
         ]
     ]);
 }
 
-// 处理请求
+// Handle request
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 switch ($action) {
@@ -242,7 +242,7 @@ switch ($action) {
         break;
 
     default:
-        // 默认作为回调处理
+        // Default to callback handling
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty(file_get_contents('php://input'))) {
             handlePaymentCallback();
         } else {

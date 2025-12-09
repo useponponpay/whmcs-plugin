@@ -17,6 +17,9 @@ if (file_exists(dirname(dirname(dirname(__DIR__))) . '/includes/hooks/ponponpay_
     require_once dirname(dirname(dirname(__DIR__))) . '/includes/hooks/ponponpay_config.php';
 }
 
+// Load language support
+require_once __DIR__ . '/lib/Language.php';
+
 // Safe logger (fallback when ponponpay_safe_log is missing)
 if (!function_exists('ponponpay_safe_log')) {
     function ponponpay_safe_log($gateway, $data, $description)
@@ -33,11 +36,11 @@ if (!function_exists('ponponpay_safe_log')) {
 function ponponpay_MetaData()
 {
     return array(
-        'DisplayName' => 'PonponPay',
+        'DisplayName' => ponponpay_lang('gateway_name'),
         'APIVersion' => '2.0',
         'DisableLocalCreditCardInput' => true,
         'TokenisedStorage' => false,
-        'Description' => 'Professional crypto payment gateway supporting USDT, BTC, ETH and more across Tron, Ethereum, Polygon, Solana, etc. Secure and reliable collections.',
+        'Description' => ponponpay_lang('gateway_description'),
         'Author' => 'PonponPay Engineering Team',
         'Version' => '2.0.0',
         'TestMode' => true,
@@ -54,22 +57,22 @@ function ponponpay_config()
     return [
         'FriendlyName' => [
             'Type' => 'System',
-            'Value' => 'PonponPay - Crypto Payment Gateway',
+            'Value' => ponponpay_lang('friendly_name'),
         ],
         'api_key' => [
             'FriendlyName' => 'API Key',
             'Type' => 'text',
             'Size' => '64',
             'Description' => '<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; margin: 10px 0 0 0;">'
-                . '<strong style="font-size: 15px;">🔐 API Credentials</strong><br/>'
+                . '<strong style="font-size: 15px;">' . ponponpay_lang('config_api_credentials') . '</strong><br/>'
                 . '<p style="margin: 8px 0 8px 0; line-height: 1.5; font-size: 13px;">'
-                . 'Sign in to the merchant console and copy the API Key from the <strong>"API Keys"</strong> page.<br/>'
-                . 'Credentials will be validated automatically on save.<br/>'
+                . ponponpay_lang('config_api_key_desc') . '<br/>'
+                . ponponpay_lang('config_credentials_validated') . '<br/>'
                 . '</p>'
-                . '<strong style="font-size: 15px;">⚙️ Wallet & Payment Setup</strong><br/>'
+                . '<strong style="font-size: 15px;">' . ponponpay_lang('config_wallet_setup') . '</strong><br/>'
                 . '<p style="margin: 8px 0 0 0; line-height: 1.5; font-size: 13px;">'
-                . '📍 <strong>Wallets</strong>: add receiving addresses | 💳 <strong>Payments</strong>: enable networks and currencies<br/>'
-                . '<a href="https://ponponpay.com" target="_blank" rel="noopener" style="color: #fff; text-decoration: underline;">Open ponponpay.com</a>'
+                . '📍 <strong>' . ponponpay_lang('config_wallets') . '</strong>: ' . ponponpay_lang('config_wallets_desc') . ' | 💳 <strong>' . ponponpay_lang('config_payments') . '</strong>: ' . ponponpay_lang('config_payments_desc') . '<br/>'
+                . '<a href="https://ponponpay.com" target="_blank" rel="noopener" style="color: #fff; text-decoration: underline;">' . ponponpay_lang('config_open_console') . '</a>'
                 . '</p>'
                 . '</div>',
         ],
@@ -116,7 +119,7 @@ function ponponpay_render_api_payment($params)
     // Skip if invoice already paid
     $invoice = localAPI('GetInvoice', ['invoiceid' => $params['invoiceid']]);
     if ($invoice['result'] === 'success' && strtolower($invoice['status']) === 'paid') {
-        return '<div class="alert alert-success">Invoice already paid</div>';
+        return '<div class="alert alert-success">' . ponponpay_lang('invoice_already_paid') . '</div>';
     }
 
     // Handle order creation request
@@ -142,7 +145,7 @@ function ponponpay_render_api_payment($params)
 
             if (!empty($paymentUrl)) {
                 echo '<script>window.open("' . htmlspecialchars($paymentUrl) . '", "_blank");</script>';
-                return '<div style="text-align: center; padding: 20px;">Payment page opened in a new tab</div>';
+                return '<div style="text-align: center; padding: 20px;">' . ponponpay_lang('payment_page_opened') . '</div>';
             }
         }
     } catch (Exception $e) {
@@ -209,7 +212,7 @@ function ponponpay_render_payment_selection($params)
     // Fallback: if nothing available, show error
     if (empty($supportedOptions)) {
         error_log("[PonponPay] No available payment channels");
-        return ponponpay_render_error_page('No available payment methods, please contact support.');
+        return ponponpay_render_error_page(ponponpay_lang('no_payment_methods'));
     }
 
     // Use backend options directly
@@ -218,18 +221,18 @@ function ponponpay_render_payment_selection($params)
     $html = '
     <div class="coinpay-payment-container" style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
         <div class="payment-header" style="text-align: center; margin-bottom: 30px;">
-            <h3 style="color: #333; margin-bottom: 15px;">Choose a crypto payment method</h3>
+            <h3 style="color: #333; margin-bottom: 15px;">' . ponponpay_lang('choose_payment_method') . '</h3>
             <div class="payment-info" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                <p style="margin: 5px 0; color: #666;"><strong>Invoice Amount:</strong> ' . htmlspecialchars($params['amount']) . ' ' . htmlspecialchars($params['currency'] ?: 'CNY') . '</p>
-                <p style="margin: 5px 0; color: #666;"><strong>Payable Amount:</strong> <span id="crypto-amount">Please select a method</span></p>
+                <p style="margin: 5px 0; color: #666;"><strong>' . ponponpay_lang('invoice_amount') . ':</strong> ' . htmlspecialchars($params['amount']) . ' ' . htmlspecialchars($params['currency'] ?: 'CNY') . '</p>
+                <p style="margin: 5px 0; color: #666;"><strong>' . ponponpay_lang('payable_amount') . ':</strong> <span id="crypto-amount">' . ponponpay_lang('please_select_method') . '</span></p>
             </div>
         </div>
 
         <div class="payment-form">
             <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">Select network and currency:</label>
+                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">' . ponponpay_lang('select_network_currency') . '</label>
                 <select id="payment-option" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                    <option value="">Please choose a network & currency...</option>';
+                    <option value="">' . ponponpay_lang('please_choose_network') . '</option>';
 
     foreach ($merchantSupportedOptions as $key => $option) {
         $html .= '<option value="' . htmlspecialchars($key) . '" data-network="' . htmlspecialchars($option['network']) . '" data-currency="' . htmlspecialchars($option['currency']) . '">' . htmlspecialchars($option['display']) . '</option>';
@@ -240,13 +243,13 @@ function ponponpay_render_payment_selection($params)
             </div>
 
             <button id="create-payment" style="width: 100%; padding: 15px 25px; font-size: 18px; border: none; border-radius: 4px; cursor: pointer; background-color: #007bff; color: white;">
-                <i class="fas fa-coins"></i> Create crypto payment
+                <i class="fas fa-coins"></i> ' . ponponpay_lang('create_crypto_payment') . '
             </button>
         </div>
 
         <div id="loading" style="text-align: center; display: none; margin-top: 20px;">
             <div style="display: inline-block; width: 3rem; height: 3rem; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p>Creating payment order, please wait...</p>
+            <p>' . ponponpay_lang('creating_order') . '</p>
         </div>
 
         <div id="error-message" style="display: none; margin-top: 20px; padding: 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;"></div>
@@ -277,6 +280,11 @@ function ponponpay_render_payment_selection($params)
         var exchangeRate = ' . json_encode(floatval($params['exchange_rate'] ?: 1.0)) . ';
         var originalAmount = ' . json_encode(floatval($params['amount'] ?: 0)) . ';
 
+        var langPleaseSelect = ' . json_encode(ponponpay_lang('please_select_method')) . ';
+        var langPleaseSelectNetwork = ' . json_encode(ponponpay_lang('please_select_network')) . ';
+        var langFailedCreateOrder = ' . json_encode(ponponpay_lang('failed_create_order')) . ';
+        var langNetworkError = ' . json_encode(ponponpay_lang('network_error_retry')) . ';
+
         function updateCryptoAmount() {
             var selectedOption = document.getElementById("payment-option");
             if (selectedOption.value) {
@@ -284,7 +292,7 @@ function ponponpay_render_payment_selection($params)
                 var cryptoAmount = originalAmount / exchangeRate;
                 document.getElementById("crypto-amount").textContent = cryptoAmount + " " + currency;
             } else {
-                document.getElementById("crypto-amount").textContent = "Please choose a payment method";
+                document.getElementById("crypto-amount").textContent = langPleaseSelect;
             }
         }
 
@@ -294,7 +302,7 @@ function ponponpay_render_payment_selection($params)
             var selectedOption = document.getElementById("payment-option");
 
             if (!selectedOption.value) {
-                showError("Please select a network and currency");
+                showError(langPleaseSelectNetwork);
                 return;
             }
 
@@ -319,12 +327,12 @@ function ponponpay_render_payment_selection($params)
                             window.location.reload();
                         }
                     } else {
-                        showError(data.error || "Failed to create order");
+                        showError(data.error || langFailedCreateOrder);
                     }
                 })
                 .catch(error => {
                     hideLoading();
-                    showError("Network error, please retry");
+                    showError(langNetworkError);
                 });
         });
 
@@ -477,7 +485,7 @@ function ponponpay_check_order_status($params)
 
         if (empty($orderNo) && empty($tradeId)) {
             error_log("[PonponPay] Order status check failed: both order_no and trade_id are empty");
-            throw new Exception('Order number or trade ID is required');
+            throw new Exception(ponponpay_lang('order_number_required'));
         }
 
         // Prefer trade_id when provided
@@ -566,16 +574,16 @@ function ponponpay_check_existing_order($params)
 function ponponpay_render_basic_payment($params)
 {
     $html = '<div style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">';
-    $html .= '<h3>PonponPay Crypto Payment</h3>';
-    $html .= '<p><strong>Invoice Amount:</strong> ' . htmlspecialchars($params['amount']) . ' ' . htmlspecialchars($params['currency']) . '</p>';
+    $html .= '<h3>' . ponponpay_lang('basic_payment_title') . '</h3>';
+    $html .= '<p><strong>' . ponponpay_lang('invoice_amount') . ':</strong> ' . htmlspecialchars($params['amount']) . ' ' . htmlspecialchars($params['currency']) . '</p>';
     $html .= '<p><strong>Invoice ID:</strong> ' . htmlspecialchars($params['invoiceid']) . '</p>';
     $html .= '<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0;">';
-    $html .= '<p><strong>Setup reminder:</strong></p>';
-    $html .= '<p>Please configure the following items in the gateway settings to enable full functionality:</p>';
+    $html .= '<p><strong>' . ponponpay_lang('setup_reminder') . '</strong></p>';
+    $html .= '<p>' . ponponpay_lang('setup_reminder_desc') . '</p>';
     $html .= '<ul>';
-    $html .= '<li>Merchant ID</li>';
-    $html .= '<li>API key and secret</li>';
-    $html .= '<li>Wallet address configuration</li>';
+    $html .= '<li>' . ponponpay_lang('setup_merchant_id') . '</li>';
+    $html .= '<li>' . ponponpay_lang('setup_api_key_secret') . '</li>';
+    $html .= '<li>' . ponponpay_lang('setup_wallet_address') . '</li>';
     $html .= '</ul>';
     $html .= '</div>';
     $html .= '</div>';
@@ -589,9 +597,9 @@ function ponponpay_render_basic_payment($params)
 function ponponpay_render_error_page($error)
 {
     return '<div style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #dc3545; border-radius: 8px; background: #f8d7da; color: #721c24;">
-                <h4>Payment system error</h4>
+                <h4>' . ponponpay_lang('payment_system_error') . '</h4>
                 <p>' . htmlspecialchars($error) . '</p>
-                <p><em>Please contact support for assistance.</em></p>
+                <p><em>' . ponponpay_lang('contact_support') . '</em></p>
             </div>';
 }
 
@@ -638,10 +646,10 @@ function ponponpay_plugin_activate($params)
 function ponponpay_get_network_display_name($network)
 {
     $names = [
-        'Tron' => 'Tron (TRC20)',
-        'Ethereum' => 'Ethereum (ERC20)',
-        'Polygon' => 'Polygon (MATIC)',
-        'Solana' => 'Solana (SOL)'
+        'Tron' => ponponpay_lang('network_tron'),
+        'Ethereum' => ponponpay_lang('network_ethereum'),
+        'Polygon' => ponponpay_lang('network_polygon'),
+        'Solana' => ponponpay_lang('network_solana')
     ];
     return $names[$network] ?? $network;
 }
@@ -768,7 +776,7 @@ function ponponpay_config_validate($params)
 
     // Basic parameter validation
     if (!empty($params['exchange_rate']) && (!is_numeric($params['exchange_rate']) || floatval($params['exchange_rate']) <= 0)) {
-        $errors[] = 'Exchange rate must be a number greater than 0.';
+        $errors[] = ponponpay_lang('invalid_exchange_rate');
     }
 
     // Validate API credentials when provided
@@ -776,9 +784,9 @@ function ponponpay_config_validate($params)
 
         // Validate API key length
         if (strlen($params['api_key']) < 32) {
-            $errors[] = '<strong style="color: #dc3545;">⚠️ Invalid format</strong><br/>'
-                      . 'API key length is incorrect. Current length: ' . strlen($params['api_key']) . '.<br/>'
-                      . '<strong>Fix:</strong> API key should be at least 32 characters. Please paste the full key.';
+            $errors[] = '<strong style="color: #dc3545;">' . ponponpay_lang('invalid_api_key_format') . '</strong><br/>'
+                      . ponponpay_lang('api_key_length_error', strlen($params['api_key'])) . '<br/>'
+                      . '<strong>' . ponponpay_lang('fix') . ':</strong> ' . ponponpay_lang('api_key_fix');
             return $errors;
         }
 
@@ -793,15 +801,14 @@ function ponponpay_config_validate($params)
             if (!$activateResult || $activateResult['code'] != 0) {
                 $errorMessage = $activateResult['message'] ?? 'Unknown error';
 
-                $errorMsg = '<strong style="color: #dc3545;">⚠️ Activation failed</strong><br/>' . $errorMessage;
+                $errorMsg = '<strong style="color: #dc3545;">' . ponponpay_lang('activation_failed') . '</strong><br/>' . $errorMessage;
 
                 error_log("[PonponPay] " . strip_tags($errorMsg));
                 $errors[] = $errorMsg;
 
                 // Additional help
                 $errors[] = '<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin-top: 10px;">'
-                          . '<strong>💡 Note:</strong> Settings were saved but the gateway is inactive because activation failed.'
-                          . 'Please fix the issue above and save again.'
+                          . ponponpay_lang('settings_saved_inactive')
                           . '</div>';
 
                 return $errors;
@@ -815,16 +822,16 @@ function ponponpay_config_validate($params)
             // WHMCS only shows success via logging; no extra action needed
 
         } catch (Exception $e) {
-            $errorMsg = '<strong style="color: #dc3545;">⚠️ API connection error</strong><br/>'
-                      . 'Unable to reach the payment gateway server.<br/>'
-                      . '<strong>Details:</strong> ' . $e->getMessage() . '<br/>'
-                      . '<strong>Fix:</strong> Check network connectivity, verify API server URL, or contact support.';
+            $errorMsg = '<strong style="color: #dc3545;">' . ponponpay_lang('api_connection_error') . '</strong><br/>'
+                      . ponponpay_lang('api_connection_error_desc') . '<br/>'
+                      . '<strong>' . ponponpay_lang('details') . ':</strong> ' . $e->getMessage() . '<br/>'
+                      . '<strong>' . ponponpay_lang('fix') . ':</strong> ' . ponponpay_lang('api_connection_fix');
             error_log("[PonponPay] " . strip_tags($errorMsg));
             $errors[] = $errorMsg;
 
             // Additional help
             $errors[] = '<div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin-top: 10px;">'
-                      . '<strong>💡 Note:</strong> Settings were saved, but the gateway may not work until credentials are verified.'
+                      . ponponpay_lang('settings_saved_unverified')
                       . '</div>';
         }
     }
@@ -844,7 +851,7 @@ function ponponpay_activate($params)
 {
     return [
         'status' => 'success',
-        'description' => 'PonponPay gateway activated. Orders will be recorded via the backend API.'
+        'description' => ponponpay_lang('gateway_activated')
     ];
 }
 
@@ -855,7 +862,7 @@ function ponponpay_deactivate($params)
 {
     return [
         'status' => 'success',
-        'description' => 'PonponPay gateway has been deactivated.'
+        'description' => ponponpay_lang('gateway_deactivated')
     ];
 }
 
@@ -879,64 +886,69 @@ function ponponpay_generate_payment_page($orderData, $currency, $network, $param
     // Network display name
     $networkDisplay = ponponpay_get_network_display_name($network);
 
+    // Language strings for JavaScript
+    $langOrderExpired = ponponpay_lang('order_expired');
+    $langCopied = ponponpay_lang('copied');
+    $langChecking = ponponpay_lang('checking');
+
     $html = '
     <div class="coinpay-payment-page" style="width: 100%; max-width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; font-family: Arial, sans-serif; box-sizing: border-box;">
         <div class="payment-header" style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #333; margin: 0 0 8px 0; font-size: 18px;">Crypto Payment</h2>
+            <h2 style="color: #333; margin: 0 0 8px 0; font-size: 18px;">' . ponponpay_lang('crypto_payment') . '</h2>
             <div class="countdown-timer" style="background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">
-                <div style="color: #666; font-size: 12px; margin-bottom: 3px;">Time remaining</div>
+                <div style="color: #666; font-size: 12px; margin-bottom: 3px;">' . ponponpay_lang('time_remaining') . '</div>
                 <div id="countdown" style="font-size: 20px; font-weight: bold; color: #dc3545;" data-expiration="' . $expirationTime . '">
-                    calculating...
+                    ' . ponponpay_lang('calculating') . '
                 </div>
             </div>
         </div>
 
         <div class="payment-info" style="text-align: center; margin-bottom: 20px;">
             <div style="margin-bottom: 15px;">
-                <div style="font-size: 16px; color: #333; margin-bottom: 3px;">Amount to pay</div>
+                <div style="font-size: 16px; color: #333; margin-bottom: 3px;">' . ponponpay_lang('amount_to_pay') . '</div>
                 <div style="font-size: 22px; font-weight: bold; color: #28a745;">' . $actualAmount . ' ' . $currency . '</div>
             </div>
 
             <div style="margin-bottom: 15px;">
-                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">Scan the QR code to pay</div>
-                <img src="' . $qrCodeUrl . '" alt="Payment QR code" style="max-width: 160px; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px;">
+                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">' . ponponpay_lang('scan_qr_to_pay') . '</div>
+                <img src="' . $qrCodeUrl . '" alt="' . ponponpay_lang('payment_qr_code') . '" style="max-width: 160px; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px;">
             </div>
         </div>
 
         <div class="payment-details" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
             <div style="margin-bottom: 12px;">
-                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">Network:</label>
+                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">' . ponponpay_lang('network') . ':</label>
                 <div style="font-size: 14px; color: #495057;">' . $networkDisplay . '</div>
             </div>
 
             <div style="margin-bottom: 0;">
-                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">Payment address:</label>
+                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">' . ponponpay_lang('payment_address') . ':</label>
                 <div style="display: flex; align-items: center; background: white; padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex-wrap: wrap; gap: 8px;">
                     <input type="text" id="payment-address" value="' . htmlspecialchars($address) . '" readonly
                            style="flex: 1; min-width: 200px; border: none; outline: none; font-family: monospace; font-size: 12px; background: transparent;">
                     <button onclick="copyAddress()" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap;">
-                        <i class="fas fa-copy"></i> Copy
+                        <i class="fas fa-copy"></i> ' . ponponpay_lang('copy') . '
                     </button>
                 </div>
             </div>
         </div>
 
         <div class="payment-instructions" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">Payment tips:</h4>
+            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">' . ponponpay_lang('payment_tips') . '</h4>
             <ul style="margin: 0; padding-left: 18px; color: #856404; font-size: 12px; line-height: 1.4;">
-                <li>Please use the correct network (' . $networkDisplay . ').</li>
-                <li>Amount must match exactly: ' . $actualAmount . ' ' . $currency . '.</li>
-                <li>Complete payment before the timer ends.</li>
-                <li>The page will auto-redirect after payment.</li>
+                <li>' . ponponpay_lang('tip_correct_network', $networkDisplay) . '</li>
+                <li>' . ponponpay_lang('tip_exact_amount', $actualAmount, $currency) . '</li>
+                <li>' . ponponpay_lang('tip_complete_before_timer') . '</li>
+                <li>' . ponponpay_lang('tip_auto_redirect') . '</li>
             </ul>
         </div>
 
         <div class="payment-actions" style="text-align: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
             <button onclick="checkPaymentStatus()" style="padding: 10px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; min-width: 120px; max-width: 150px;">
-                <i class="fas fa-sync"></i> Check status
+                <i class="fas fa-sync"></i> ' . ponponpay_lang('check_status') . '
             </button>
             <button onclick="window.location.reload()" style="padding: 10px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; min-width: 120px; max-width: 150px;">
-                <i class="fas fa-redo"></i> Refresh page
+                <i class="fas fa-redo"></i> ' . ponponpay_lang('refresh_page') . '
             </button>
         </div>
     </div>
@@ -944,6 +956,9 @@ function ponponpay_generate_payment_page($orderData, $currency, $network, $param
     <script>
         let countdownInterval;
         let tradeId = "' . $tradeId . '";
+        let langOrderExpired = ' . json_encode($langOrderExpired) . ';
+        let langCopied = ' . json_encode($langCopied) . ';
+        let langChecking = ' . json_encode($langChecking) . ';
 
         // Copy address
         function copyAddress() {
@@ -954,7 +969,7 @@ function ponponpay_generate_payment_page($orderData, $currency, $network, $param
             // Show success hint
             const button = event.target.closest("button");
             const originalText = button.innerHTML;
-            button.innerHTML = "<i class=\"fas fa-check\"></i> Copied";
+            button.innerHTML = "<i class=\"fas fa-check\"></i> " + langCopied;
             button.style.background = "#28a745";
 
             setTimeout(() => {
@@ -971,7 +986,7 @@ function ponponpay_generate_payment_page($orderData, $currency, $network, $param
             const remainingSeconds = Math.max(0, expirationTime - currentTime);
 
             if (remainingSeconds <= 0) {
-                countdownElement.innerHTML = "Order expired";
+                countdownElement.innerHTML = langOrderExpired;
                 countdownElement.style.color = "#dc3545";
                 clearInterval(countdownInterval);
                 return;
@@ -991,7 +1006,7 @@ function ponponpay_generate_payment_page($orderData, $currency, $network, $param
         function checkPaymentStatus() {
             const button = event.target;
             const originalText = button.innerHTML;
-            button.innerHTML = "<i class=\"fas fa-spinner fa-spin\"></i> Checking...";
+            button.innerHTML = "<i class=\"fas fa-spinner fa-spin\"></i> " + langChecking;
             button.disabled = true;
 
             // AJAX status check

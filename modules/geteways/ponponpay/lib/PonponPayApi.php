@@ -1,7 +1,7 @@
 <?php
 /**
  * PonponPay API Client
- * 与 PonponPay API 交互的客户端类
+ * Client class for interacting with PonponPay API
  */
 
 class PonponPayApi
@@ -11,7 +11,7 @@ class PonponPayApi
     private $timeout;
 
     /**
-     * 构造函数
+     * Constructor
      */
     public function __construct($apiKey, $apiUrl, $timeout = 30)
     {
@@ -21,7 +21,7 @@ class PonponPayApi
     }
 
     /**
-     * 创建支付订单
+     * Create payment order
      */
     public function createOrder($params)
     {
@@ -30,7 +30,7 @@ class PonponPayApi
     }
 
     /**
-     * 查询订单状态
+     * Query order status
      */
     public function queryOrder($orderNo)
     {
@@ -39,7 +39,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取支持的币种列表
+     * Get supported coins list
      */
     public function getSupportedCoins()
     {
@@ -48,7 +48,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取汇率
+     * Get exchange rate
      */
     public function getExchangeRate($from, $to)
     {
@@ -60,7 +60,7 @@ class PonponPayApi
     }
 
     /**
-     * 发起HTTP请求
+     * Make HTTP request
      */
     private function makeRequest($method, $endpoint, $params = [])
     {
@@ -74,7 +74,7 @@ class PonponPayApi
 
         $ch = curl_init();
 
-        // 基础设置
+        // Basic settings
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
@@ -84,7 +84,7 @@ class PonponPayApi
             CURLOPT_SSL_VERIFYHOST => 2
         ]);
 
-        // 根据请求方法设置参数
+        // Set parameters based on request method
         if ($method === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);
             if ($params) {
@@ -119,7 +119,7 @@ class PonponPayApi
     }
 
     /**
-     * 验证回调签名
+     * Verify callback signature
      */
     public function verifyCallback($data, $signature)
     {
@@ -128,11 +128,11 @@ class PonponPayApi
     }
 
     /**
-     * 生成二维码URL
+     * Generate QR code URL
      */
     public function generateQRCodeUrl($address, $amount, $coin)
     {
-        // 根据不同币种生成对应的URI scheme
+        // Generate corresponding URI scheme based on different coins
         $uri = '';
 
         switch (strtoupper($coin)) {
@@ -143,19 +143,19 @@ class PonponPayApi
                 $uri = "ethereum:{$address}?value=" . bcmul($amount, '1000000000000000000');
                 break;
             case 'USDT':
-                $uri = "ethereum:{$address}?value=0"; // USDT是ERC20代币
+                $uri = "ethereum:{$address}?value=0"; // USDT is ERC20 token
                 break;
             default:
                 $uri = "{$coin}:{$address}?amount={$amount}";
                 break;
         }
 
-        // 使用Google Charts API生成二维码（也可以使用其他服务）
+        // Use Google Charts API to generate QR code (can also use other services)
         return "https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=" . urlencode($uri);
     }
 
     /**
-     * 格式化金额
+     * Format amount
      */
     public function formatAmount($amount, $decimals = 8)
     {
@@ -163,7 +163,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取网络名称
+     * Get network name
      */
     public function getNetworkName($network)
     {
@@ -179,7 +179,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取币种图标URL
+     * Get coin icon URL
      */
     public function getCoinIconUrl($coin)
     {
@@ -188,7 +188,7 @@ class PonponPayApi
     }
 
     /**
-     * 检查API连通性
+     * Test API connectivity
      */
     public function testConnection()
     {
@@ -202,7 +202,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取钱包余额
+     * Get wallet balance
      */
     public function getWalletBalance($coin = null)
     {
@@ -212,7 +212,7 @@ class PonponPayApi
     }
 
     /**
-     * 获取交易历史
+     * Get transaction history
      */
     public function getTransactionHistory($limit = 10, $offset = 0)
     {

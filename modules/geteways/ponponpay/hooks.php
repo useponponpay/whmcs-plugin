@@ -2,51 +2,48 @@
 /**
  * PonponPay WHMCS Payment Gateway Hooks
  *
- * 提供钩子函数来处理订单状态变更、支付状态通知等
+ * Provides hook functions for order status changes and payment notifications
  */
 
 if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
+// Load language support
+require_once __DIR__ . '/lib/Language.php';
+
 /**
- * 订单支付成功后的钩子
+ * Hook after invoice payment success
  */
 add_hook('InvoicePaid', 1, function($vars) {
-    // 检查是否使用ponponpay支付网关
     $invoiceId = $vars['invoiceid'];
 
-    // 获取发票信息
+    // Get invoice info
     $invoice = localAPI('GetInvoice', array('invoiceid' => $invoiceId));
 
     if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'ponponpay') {
-        // 记录支付成功日志
-        logActivity("PonponPay: 订单 #{$invoiceId} 支付成功");
-
-        // 可以在这里添加其他业务逻辑
-        // 例如发送确认邮件、更新外部系统等
+        // Log payment success
+        logActivity(ponponpay_lang('order_paid_log', $invoiceId));
     }
 });
 
 /**
- * 订单取消后的钩子
+ * Hook after invoice cancellation
  */
 add_hook('InvoiceCancelled', 1, function($vars) {
     $invoiceId = $vars['invoiceid'];
 
-    // 获取发票信息
+    // Get invoice info
     $invoice = localAPI('GetInvoice', array('invoiceid' => $invoiceId));
 
     if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'ponponpay') {
-        // 记录订单取消日志
-        logActivity("PonponPay: 订单 #{$invoiceId} 已取消");
-
-        // 可以在这里处理退款逻辑或通知外部系统
+        // Log order cancellation
+        logActivity(ponponpay_lang('order_cancelled_log', $invoiceId));
     }
 });
 
 /**
- * 客户端区域页面钩子 - 添加JavaScript
+ * Client area page hook - Add JavaScript
  */
 add_hook('ClientAreaHeadOutput', 1, function($vars) {
     if ($vars['filename'] == 'viewinvoice') {
@@ -55,10 +52,11 @@ add_hook('ClientAreaHeadOutput', 1, function($vars) {
 });
 
 /**
- * 管理员区域钩子 - 添加支付状态检查功能
+ * Admin area hook - Add payment status check functionality
  */
 add_hook('AdminAreaHeadOutput', 1, function($vars) {
     if ($vars['filename'] == 'invoices') {
+        $checkFailedMsg = ponponpay_lang('check_failed');
         return '<script>
             function checkPonponPayStatus(invoiceId) {
                 jQuery.post("modules/gateways/ponponpay/admin_check.php", {
@@ -68,7 +66,7 @@ add_hook('AdminAreaHeadOutput', 1, function($vars) {
                     if (data.success) {
                         location.reload();
                     } else {
-                        alert("检查失败: " + data.message);
+                        alert("' . addslashes($checkFailedMsg) . '" + data.message);
                     }
                 }, "json");
             }
