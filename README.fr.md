@@ -69,4 +69,4 @@ Le client passe commande → WHMCS crée la facture
 ## Liens
 
 - **Console PonponPay** : [https://ponponpay.com](https://ponponpay.com)
-- **Documentation** : [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **Documentation** : [https://ponponpay.com/docs](https://ponponpay.com/docs)

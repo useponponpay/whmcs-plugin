@@ -69,4 +69,4 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 ## リンク
 
 - **PonponPay コンソール**：[https://ponponpay.com](https://ponponpay.com)
-- **ドキュメント**：[https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **ドキュメント**：[https://ponponpay.com/docs](https://ponponpay.com/docs)

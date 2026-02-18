@@ -115,4 +115,4 @@ English, 中文, 日本語, 한국어, Français, Deutsch, Español, Português,
 ## Links
 
 - **PonponPay Console**: [https://ponponpay.com](https://ponponpay.com)
-- **Documentation**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **Documentation**: [https://ponponpay.com/docs](https://ponponpay.com/docs)

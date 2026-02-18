@@ -69,4 +69,4 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 ## 링크
 
 - **PonponPay 콘솔**: [https://ponponpay.com](https://ponponpay.com)
-- **문서**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **문서**: [https://ponponpay.com/docs](https://ponponpay.com/docs)

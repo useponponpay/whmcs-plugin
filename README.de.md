@@ -69,4 +69,4 @@ Kunde bestellt → WHMCS erstellt Rechnung
 ## Links
 
 - **PonponPay Konsole**: [https://ponponpay.com](https://ponponpay.com)
-- **Dokumentation**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **Dokumentation**: [https://ponponpay.com/docs](https://ponponpay.com/docs)

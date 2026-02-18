@@ -69,4 +69,4 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 ## الروابط
 
 - **لوحة تحكم PonponPay**: [https://ponponpay.com](https://ponponpay.com)
-- **التوثيق**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **التوثيق**: [https://ponponpay.com/docs](https://ponponpay.com/docs)

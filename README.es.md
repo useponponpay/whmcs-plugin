@@ -69,4 +69,4 @@ Cliente realiza pedido → WHMCS crea factura
 ## Enlaces
 
 - **Consola PonponPay**: [https://ponponpay.com](https://ponponpay.com)
-- **Documentación**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
+- **Documentación**: [https://ponponpay.com/docs](https://ponponpay.com/docs)
