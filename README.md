@@ -1,49 +1,118 @@
-# PonponPay WHMCS 插件（ponponpay-plugin）
+🌐 [English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Français](README.fr.md) | [Português](README.pt.md) | [Русский](README.ru.md) | [العربية](README.ar.md)
 
-该目录为 PonponPay WHMCS 支付网关插件的**独立发布版本**，用于分发给客户的 WHMCS 环境。与 `whmcs/` 目录中的插件代码保持同步，但**生产环境 API 域名配置保持不变**。
+# PonponPay WHMCS Payment Gateway Plugin
 
-## 目录结构
+Accept cryptocurrency payments (USDT, USDC, etc.) in your WHMCS billing system via [PonponPay](https://ponponpay.com).
 
-```text
-ponponpay-plugin/
-├─ includes/
-│  └─ hooks/ponponpay_config.php   # 配置变更 Hook
-└─ modules/
-   └─ geteways/ponponpay/           # 网关主代码（发布时放到 WHMCS modules/gateways/）
-      ├─ ponponpay.php              # 入口文件（对应 WHMCS modules/gateways/ponponpay.php）
-      ├─ ponponpay_main.php         # 主要逻辑
-      ├─ callback.php               # 回调入口
-      ├─ hooks.php                  # 钩子
-      ├─ ponponpay.js / ponponpay.css
-      ├─ lib/                       # API 客户端与语言工具
-      └─ lang/                      # 多语言包
+Supported networks: **Tron (TRC20)** · **Ethereum (ERC20)** · **BSC (BEP20)** · **Polygon** · **Solana**
+
+---
+
+## Prerequisites
+
+> **⚠️ Before installing this plugin, you must complete the following steps on [ponponpay.com](https://ponponpay.com):**
+
+1. **Register an account** — Visit [https://ponponpay.com](https://ponponpay.com) and sign up
+2. **Add your wallet address** — Go to **Wallet Management** and add at least one receiving wallet (e.g. TRC20 USDT address)
+3. **Enable supported currencies** — Select which cryptocurrencies (USDT, USDC, etc.) each wallet accepts
+4. **Get your API Key** — Go to **API Keys** page and generate an API Key for WHMCS integration
+
+Without completing these steps, the plugin will show **"No available payment methods"** error.
+
+---
+
+## Installation
+
+Copy the following files into your WHMCS root directory:
+
+```
+ponponpay-plugin/                     →  YOUR_WHMCS_ROOT/
+├── includes/hooks/ponponpay_config.php  →  includes/hooks/ponponpay_config.php
+├── modules/gateways/ponponpay.php       →  modules/gateways/ponponpay.php
+├── modules/gateways/callback/ponponpay.php → modules/gateways/callback/ponponpay.php
+└── modules/gateways/ponponpay/          →  modules/gateways/ponponpay/
 ```
 
-> 注意：仓库内目录名为 `geteways`，发布到 WHMCS 时需放置到 `modules/gateways/`。
+---
 
-## 安装方式（目标 WHMCS 目录）
+## Configuration
 
-将以下文件复制到 WHMCS：
+1. Log in to your **WHMCS Admin Panel**
+2. Navigate to **Setup → Payments → Payment Gateways**
+3. Find **PonponPay** and click **Activate**
+4. Enter the **API Key** obtained from [ponponpay.com](https://ponponpay.com)
+5. Click **Save Changes**
 
-- `modules/gateways/ponponpay.php`
-- `modules/gateways/ponponpay/*`
-- `includes/hooks/ponponpay_config.php`
+---
 
-然后在 WHMCS 后台启用 PonponPay 网关并填写配置。
+## Directory Structure
 
-## 与 whmcs/ 目录同步规则
+```
+ponponpay-plugin/
+├── includes/
+│   └── hooks/
+│       └── ponponpay_config.php         # API URL & hook configuration
+├── modules/
+│   └── gateways/
+│       ├── ponponpay.php                # Gateway entry point
+│       ├── callback/
+│       │   └── ponponpay.php            # Payment callback handler
+│       └── ponponpay/
+│           ├── ponponpay_main.php       # Core payment logic
+│           ├── hooks.php                # WHMCS hooks (auto-redirect, etc.)
+│           ├── admin_check.php          # Admin payment status check
+│           ├── callback.php             # Callback processing
+│           ├── ponponpay.js             # Frontend JavaScript
+│           ├── ponponpay.css            # Frontend styles
+│           ├── whmcs.json               # Module metadata
+│           ├── lib/
+│           │   ├── PonponPayApi.php     # API client
+│           │   └── Language.php         # i18n support
+│           └── lang/                    # Language packs (10 languages)
+│               ├── english.php
+│               ├── chinese.php
+│               ├── japanese.php
+│               ├── korean.php
+│               ├── french.php
+│               ├── german.php
+│               ├── spanish.php
+│               ├── portuguese.php
+│               └── russian.php
+└── README.md
+```
 
-当 `whmcs/` 中的 PonponPay 插件有修改时，需要同步到本目录，**但不要同步 API 域名配置**：
+---
 
-- `whmcs/modules/gateways/ponponpay.php`
-  → `ponponpay-plugin/modules/geteways/ponponpay/ponponpay.php`
-- `whmcs/modules/gateways/ponponpay/*`
-  → `ponponpay-plugin/modules/geteways/ponponpay/ponponpay/*`
-- `whmcs/includes/hooks/ponponpay_config.php`
-  → `ponponpay-plugin/includes/hooks/ponponpay_config.php`
+## Payment Flow
 
-## 注意事项
+```
+Customer places order → WHMCS creates invoice
+    → Auto-redirect to invoice page
+    → Customer selects network & currency (e.g. Tron - USDT)
+    → Plugin creates payment order via PonponPay API
+    → Customer completes crypto payment
+    → PonponPay sends callback → WHMCS marks invoice as paid
+```
 
-- 本目录用于发布版分发，保持生产环境 API 域名
-- 本地开发环境特有配置不应同步到这里
-- 语言包位于 `modules/geteways/ponponpay/lang/`
+---
+
+## Supported Languages
+
+English, 中文, 日本語, 한국어, Français, Deutsch, Español, Português, Русский
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "No available payment methods" | Make sure you have added wallets and enabled currencies at [ponponpay.com](https://ponponpay.com) |
+| Payment callback not received | Check that your WHMCS server is publicly accessible and the callback URL is correct |
+| API Key validation failed | Verify the API Key is correct and has not expired |
+
+---
+
+## Links
+
+- **PonponPay Console**: [https://ponponpay.com](https://ponponpay.com)
+- **Documentation**: [https://docs.ponponpay.com](https://docs.ponponpay.com)
