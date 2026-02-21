@@ -140,7 +140,7 @@ function ponponpay_render_api_payment($params)
 			$tradeId = $existingOrder['data']['trade_id'] ?? '';
 			$paymentUrl = $existingOrder['data']['payment_url'] ?? '';
 			if (empty($paymentUrl) && !empty($tradeId)) {
-				$paymentUrl = 'http://localhost:3001/pay/' . $tradeId;
+				$paymentUrl = ponponpay_get_api_url() . '/pay/' . $tradeId;
 			}
 
 			if (!empty($paymentUrl)) {
@@ -443,7 +443,7 @@ function ponponpay_create_api_order($params)
 			$paymentUrl = $response['data']['payment_url'] ?? '';
 			if (empty($paymentUrl)) {
 				// Fallback build URL
-				$paymentUrl = 'http://localhost:3001/pay/' . ($response['data']['trade_id'] ?? '');
+				$paymentUrl = ponponpay_get_api_url() . '/pay/' . ($response['data']['trade_id'] ?? '');
 			}
 
 			// Return URL for redirect
