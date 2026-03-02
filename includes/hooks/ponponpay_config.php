@@ -8,6 +8,11 @@ if (!defined('WHMCS')) {
 	die('You cannot access this file directly.');
 }
 
+if (defined('PONPONPAY_CONFIG_HOOK_LOADED')) {
+	return;
+}
+define('PONPONPAY_CONFIG_HOOK_LOADED', true);
+
 // Safe logger
 function ponponpay_log($gateway, $data, $description)
 {
