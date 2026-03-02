@@ -153,7 +153,8 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 if (!function_exists('ponponpay_get_api_url')) {
 	function ponponpay_get_api_url()
 	{
-		return 'https://api.ponponpay.com';
+		// return 'https://api.ponponpay.com';
+		return 'http://127.0.0.1:11050';
 	}
 }
 

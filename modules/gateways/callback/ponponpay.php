@@ -8,13 +8,43 @@
  * @version 2.0.0
  */
 
-require_once __DIR__ . '/../../../init.php';
-require_once __DIR__ . '/../../../includes/gatewayfunctions.php';
-require_once __DIR__ . '/../../../includes/invoicefunctions.php';
+/**
+ * 定位 WHMCS 根目录（兼容软链接部署）。
+ */
+function ponponpay_resolve_whmcs_root()
+{
+    $candidates = [];
+
+    if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+        $candidates[] = dirname(dirname(dirname((string)$_SERVER['SCRIPT_FILENAME'])));
+    }
+    if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+        $candidates[] = rtrim((string)$_SERVER['DOCUMENT_ROOT'], '/\\');
+    }
+    $candidates[] = dirname(__DIR__, 3);
+
+    foreach ($candidates as $root) {
+        if ($root && is_file($root . '/init.php')) {
+            return $root;
+        }
+    }
+
+    return null;
+}
+
+$whmcsRoot = ponponpay_resolve_whmcs_root();
+if (!$whmcsRoot) {
+    http_response_code(500);
+    exit('WHMCS bootstrap not found');
+}
+
+require_once $whmcsRoot . '/init.php';
+require_once $whmcsRoot . '/includes/gatewayfunctions.php';
+require_once $whmcsRoot . '/includes/invoicefunctions.php';
 
 // 引入配置文件以确保 ponponpay_get_api_url 函数可用
-if (file_exists(__DIR__ . '/../../../includes/hooks/ponponpay_config.php')) {
-    require_once __DIR__ . '/../../../includes/hooks/ponponpay_config.php';
+if (file_exists($whmcsRoot . '/includes/hooks/ponponpay_config.php')) {
+    require_once $whmcsRoot . '/includes/hooks/ponponpay_config.php';
 }
 
 # 注释掉Capsule，使用传统方法
@@ -52,7 +82,7 @@ function callBackendAPI($url, $data, $apiKey)
         CURLOPT_TIMEOUT => 30,
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
-            'Authorization: Bearer ' . $apiKey,
+            'X-API-Key: ' . $apiKey,
             'User-Agent: WHMCS-PonponPay-Callback/2.0'
         ]
     ]);
@@ -76,6 +106,43 @@ function callBackendAPI($url, $data, $apiKey)
     }
 
     return $decoded;
+}
+
+/**
+ * 从回调 order_no 解析发票ID。
+ * 优先解析 WHMCS_{invoiceId}_{hash}，若不匹配则回查后端订单详情。
+ */
+function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
+{
+    if (preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $orderNo, $matches)) {
+        return (int)$matches[1];
+    }
+
+    $apiKey = trim((string)($gatewayParams['api_key'] ?? ''));
+    if ($apiKey === '' || !function_exists('ponponpay_get_api_url')) {
+        return 0;
+    }
+
+    $apiUrl = rtrim(ponponpay_get_api_url(), '/');
+    $detailUrl = $apiUrl . '/api/v1/pay/sdk/order/detail';
+
+    $candidates = [
+        ['trade_id' => $orderNo],
+        ['mch_order_id' => $orderNo],
+    ];
+    foreach ($candidates as $payload) {
+        try {
+            $resp = callBackendAPI($detailUrl, $payload, $apiKey);
+            $mchOrderId = $resp['data']['mch_order_id'] ?? '';
+            if (is_string($mchOrderId) && preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $mchOrderId, $matches)) {
+                return (int)$matches[1];
+            }
+        } catch (Throwable $e) {
+            error_log("[PonponPay Callback] 订单回查失败(" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "): " . $e->getMessage());
+        }
+    }
+
+    return 0;
 }
 
 // ponponpay_get_api_url 函数已移至 includes/hooks/ponponpay_config.php
@@ -106,6 +173,75 @@ function logCallback($data, $message = 'Callback received')
     if (function_exists('logTransaction')) {
         logTransaction('PonponPay', $data, $message);
     }
+}
+
+/**
+ * 兼容不同运行环境获取请求头，避免 getallheaders 不存在导致 Fatal Error。
+ */
+function getRequestHeadersSafe()
+{
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+            return $headers;
+        }
+    }
+
+    $headers = [];
+    foreach ($_SERVER as $key => $value) {
+        if (strpos($key, 'HTTP_') !== 0) {
+            continue;
+        }
+        $headerName = str_replace(' ', '-', ucwords(strtolower(str_replace('_', ' ', substr($key, 5)))));
+        $headers[$headerName] = $value;
+    }
+
+    return $headers;
+}
+
+/**
+ * 校验并消费 nonce（防重放，5分钟窗口）。
+ */
+function consumeCallbackNonce($nonce, $timestamp)
+{
+    if (!preg_match('/^[A-Za-z0-9]{16,128}$/', $nonce)) {
+        return false;
+    }
+
+    $baseDir = __DIR__ . '/../../../storage/cache/ponponpay_nonce';
+    if (!is_dir($baseDir) && !@mkdir($baseDir, 0755, true) && !is_dir($baseDir)) {
+        $baseDir = rtrim(sys_get_temp_dir(), '/\\') . '/ponponpay_nonce';
+        if (!is_dir($baseDir) && !@mkdir($baseDir, 0755, true) && !is_dir($baseDir)) {
+            return false;
+        }
+    }
+
+    $now = time();
+    foreach (glob($baseDir . '/*.nonce') ?: [] as $file) {
+        if (($now - (int)@filemtime($file)) > 600) {
+            @unlink($file);
+        }
+    }
+
+    $nonceFile = $baseDir . '/' . hash('sha256', $timestamp . '|' . $nonce) . '.nonce';
+    $fp = @fopen($nonceFile, 'x');
+    if ($fp === false) {
+        return false;
+    }
+    @fwrite($fp, (string)$now);
+    @fclose($fp);
+
+    return true;
+}
+
+/**
+ * 计算回调签名（HMAC-SHA256）。
+ */
+function buildCallbackSignature($timestamp, $nonce, $rawBody, $apiKey)
+{
+    $keyHash = hash('sha256', trim((string)$apiKey));
+    $payload = $timestamp . "\n" . $nonce . "\n" . $rawBody;
+    return hash_hmac('sha256', $payload, $keyHash);
 }
 
 /**
@@ -159,28 +295,12 @@ try {
     error_log("[PonponPay Callback] ✅ 必要字段验证通过");
 
     // 从订单号中提取发票ID
-    // 订单号格式: WHMCS_{invoice_id}_{hash}
+    // 主格式: WHMCS_{invoice_id}_{hash}
+    // 兼容格式: 非 WHMCS 格式时回查后端订单详情解析 mch_order_id
     error_log("[PonponPay Callback] 开始验证订单号格式...");
     error_log("[PonponPay Callback] 订单号: " . $data['order_no']);
-    
-    if (!preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $data['order_no'], $matches)) {
-        error_log("[PonponPay Callback] ❌ 订单号格式错误");
-        error_log("[PonponPay Callback] 期望格式: WHMCS_{invoice_id}_{hash}");
-        error_log("[PonponPay Callback] 实际格式: " . $data['order_no']);
-        logCallback([
-            'error' => 'Invalid order number format',
-            'order_no' => $data['order_no'],
-            'expected_format' => 'WHMCS_{invoice_id}_{hash}'
-        ], 'Invalid order number format');
-        http_response_code(400);
-        echo 'Invalid order number format: ' . $data['order_no'];
-        exit;
-    }
 
-    $invoiceId = (int)$matches[1];
-    error_log("[PonponPay Callback] ✅ 订单号格式正确，提取到发票ID: " . $invoiceId);
-
-    // 获取网关配置
+    // 获取网关配置（后续签名验证和回查都需要）
     error_log("[PonponPay Callback] 获取网关配置...");
     $gatewayParams = getGatewayVariables('ponponpay');
     if (!$gatewayParams['type']) {
@@ -191,31 +311,96 @@ try {
     }
     error_log("[PonponPay Callback] ✅ 网关配置正常");
 
-    // 验证 API Key
-    $receivedApiKey = $_SERVER['HTTP_X_API_KEY'] ?? '';
-    $expectedApiKey = $gatewayParams['api_key'] ?? '';
-    
-    error_log("[PonponPay Callback] 开始验证 API Key...");
-    error_log("[PonponPay Callback] 接收到的 API Key: " . ($receivedApiKey ? substr($receivedApiKey, 0, 8) . '...' : '【缺失】'));
-    error_log("[PonponPay Callback] 期望的 API Key: " . ($expectedApiKey ? substr($expectedApiKey, 0, 8) . '...' : '【缺失】'));
-    
-    if (empty($receivedApiKey)) {
-        error_log("[PonponPay Callback] ❌ API Key 验证失败：缺少 X-API-Key header");
-        logCallback(['error' => 'Missing API Key', 'headers' => getallheaders()], 'API Key validation failed');
-        http_response_code(401);
-        echo 'Unauthorized: Missing API Key';
+    $invoiceId = resolveInvoiceIdFromOrderNo($data['order_no'], $gatewayParams);
+    if ($invoiceId <= 0) {
+        error_log("[PonponPay Callback] ❌ 订单号格式错误");
+        error_log("[PonponPay Callback] 期望格式: WHMCS_{invoice_id}_{hash} 或可回查到对应 mch_order_id");
+        error_log("[PonponPay Callback] 实际格式: " . $data['order_no']);
+        logCallback([
+            'error' => 'Invalid order number format',
+            'order_no' => $data['order_no'],
+            'expected_format' => 'WHMCS_{invoice_id}_{hash} or resolvable to mch_order_id'
+        ], 'Invalid order number format');
+        http_response_code(400);
+        echo 'Invalid order number format: ' . $data['order_no'];
         exit;
     }
-    
-    if ($receivedApiKey !== $expectedApiKey) {
-        error_log("[PonponPay Callback] ❌ API Key 验证失败：密钥不匹配");
-        logCallback(['error' => 'Invalid API Key', 'received' => substr($receivedApiKey, 0, 8) . '...'], 'API Key validation failed');
-        http_response_code(401);
-        echo 'Unauthorized: Invalid API Key';
+
+    error_log("[PonponPay Callback] ✅ 订单号格式正确，提取到发票ID: " . $invoiceId);
+
+    // 严格回调鉴权：签名 + 时间戳 + nonce，不再兼容旧 API Key 直比逻辑。
+    $expectedApiKey = trim((string)($gatewayParams['api_key'] ?? ''));
+    $receivedPrefix = $_SERVER['HTTP_X_KEY_PREFIX'] ?? '';
+    $receivedTimestamp = $_SERVER['HTTP_X_TIMESTAMP'] ?? '';
+    $receivedNonce = $_SERVER['HTTP_X_NONCE'] ?? '';
+    $receivedSignature = strtolower(trim((string)($_SERVER['HTTP_X_SIGNATURE'] ?? '')));
+
+    error_log("[PonponPay Callback] 开始验证签名头...");
+    error_log("[PonponPay Callback] X-Key-Prefix: " . ($receivedPrefix ? substr($receivedPrefix, 0, 12) . '...' : '【缺失】'));
+    error_log("[PonponPay Callback] X-Timestamp: " . ($receivedTimestamp ?: '【缺失】'));
+    error_log("[PonponPay Callback] X-Nonce: " . ($receivedNonce ? substr($receivedNonce, 0, 8) . '...' : '【缺失】'));
+    error_log("[PonponPay Callback] X-Signature: " . ($receivedSignature ? substr($receivedSignature, 0, 12) . '...' : '【缺失】'));
+
+    if ($expectedApiKey === '') {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：网关 API Key 未配置");
+        http_response_code(500);
+        echo 'Gateway API key not configured';
         exit;
     }
-    
-    error_log("[PonponPay Callback] ✅ API Key 验证通过");
+
+    if ($receivedPrefix === '' || $receivedTimestamp === '' || $receivedNonce === '' || $receivedSignature === '') {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：缺少必要签名头");
+        logCallback(['error' => 'Missing signature headers', 'headers' => getRequestHeadersSafe()], 'Signature validation failed');
+        http_response_code(401);
+        echo 'Unauthorized: Missing signature headers';
+        exit;
+    }
+
+    if (!ctype_digit($receivedTimestamp)) {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：时间戳格式非法");
+        http_response_code(401);
+        echo 'Unauthorized: Invalid timestamp';
+        exit;
+    }
+
+    $now = time();
+    $ts = (int)$receivedTimestamp;
+    if (abs($now - $ts) > 300) {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：时间戳超出有效窗口");
+        http_response_code(401);
+        echo 'Unauthorized: Timestamp expired';
+        exit;
+    }
+
+    $expectedPrefix = substr($expectedApiKey, 0, 12);
+    if ($receivedPrefix !== $expectedPrefix) {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：Key Prefix 不匹配");
+        http_response_code(401);
+        echo 'Unauthorized: Invalid key prefix';
+        exit;
+    }
+
+    if (!consumeCallbackNonce($receivedNonce, $receivedTimestamp)) {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：重复 nonce 或 nonce 无效");
+        http_response_code(409);
+        echo 'Conflict: Nonce already used';
+        exit;
+    }
+
+    $expectedSignature = buildCallbackSignature($receivedTimestamp, $receivedNonce, $input, $expectedApiKey);
+    if (!hash_equals($expectedSignature, $receivedSignature)) {
+        error_log("[PonponPay Callback] ❌ 签名验证失败：签名不匹配");
+        logCallback([
+            'error' => 'Invalid signature',
+            'received_signature' => substr($receivedSignature, 0, 12) . '...',
+            'expected_signature' => substr($expectedSignature, 0, 12) . '...'
+        ], 'Signature validation failed');
+        http_response_code(401);
+        echo 'Unauthorized: Invalid signature';
+        exit;
+    }
+
+    error_log("[PonponPay Callback] ✅ 签名验证通过");
     
     // 检查发票是否存在
     error_log("[PonponPay Callback] 检查发票是否存在: " . $invoiceId);
@@ -295,7 +480,7 @@ try {
     error_log("[PonponPay Callback] ==================== 回调处理结束 ====================");
     echo 'OK';
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     error_log("[PonponPay Callback] ❌❌❌ 异常发生 ❌❌❌");
     error_log("[PonponPay Callback] 异常信息: " . $e->getMessage());
     error_log("[PonponPay Callback] 异常位置: " . $e->getFile() . ':' . $e->getLine());
@@ -341,8 +526,18 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
             sendPaymentConfirmationEmail($invoiceId);
         }
 
-    } catch (Exception $e) {
-        error_log("[PonponPay Callback] ❌ handleSuccessfulPayment 异常: " . $e->getMessage());
+    } catch (Throwable $e) {
+        $message = $e->getMessage();
+        // 幂等容错：重复交易或已支付视为成功，避免回调重试风暴。
+        if (stripos($message, 'Duplicate Transaction ID') !== false
+            || stripos($message, 'already exists') !== false
+            || stripos($message, 'already paid') !== false) {
+            error_log("[PonponPay Callback] ⚠️ 幂等命中，视为成功: " . $message);
+            logCallback(['warning' => $message, 'invoice_id' => $invoiceId], 'Idempotent success');
+            return;
+        }
+
+        error_log("[PonponPay Callback] ❌ handleSuccessfulPayment 异常: " . $message);
         logCallback(['error' => $e->getMessage(), 'invoice_id' => $invoiceId], 'Error processing successful payment');
         throw $e;
     }
