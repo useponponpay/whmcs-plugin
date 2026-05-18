@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay Admin Functions
+ * PolyPay Admin Functions
  * Admin backend operation functions
  */
 
@@ -33,35 +33,35 @@ function adminCheckPaymentStatus()
         return;
     }
 
-    // Check if using ponponpay payment
-    if ($invoice->paymentmethod !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'This invoice is not using PonponPay payment']);
+    // Check if using polypay payment
+    if ($invoice->paymentmethod !== 'polypay') {
+        echo json_encode(['success' => false, 'message' => 'This invoice is not using PolyPay payment']);
         return;
     }
 
     // Extract order number from notes (compatible with legacy coinpay prefix)
-    preg_match('/ponponpay_order:([^,\s]+)/', $invoice->notes, $matches);
+    preg_match('/polypay_order:([^,\s]+)/', $invoice->notes, $matches);
     $orderNo = $matches[1] ?? '';
 
     if (!$orderNo) {
-        echo json_encode(['success' => false, 'message' => 'PonponPay order number not found']);
+        echo json_encode(['success' => false, 'message' => 'PolyPay order number not found']);
         return;
     }
 
     // Get gateway configuration
-    $config = getGatewayVariables('ponponpay');
+    $config = getGatewayVariables('polypay');
 
-    if (empty($config) || $config['type'] !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'PonponPay gateway not configured']);
+    if (empty($config) || $config['type'] !== 'polypay') {
+        echo json_encode(['success' => false, 'message' => 'PolyPay gateway not configured']);
         return;
     }
 
     // Load API class
-    require_once dirname(__FILE__) . '/lib/PonponPayApi.php';
+    require_once dirname(__FILE__) . '/lib/PolyPayApi.php';
 
     try {
         $apiUrl = $config['test_mode'] ? $config['test_api_url'] : $config['api_url'];
-        $api = new PonponPayApi($config['api_key'], $apiUrl);
+        $api = new PolyPayApi($config['api_key'], $apiUrl);
 
         // Query order status
         $result = $api->queryOrder($orderNo);
@@ -89,11 +89,11 @@ function adminCheckPaymentStatus()
                 $txHash,
                 $actualAmount,
                 0,
-                'ponponpay'
+                'polypay'
             );
 
             if ($success) {
-                logActivity("Admin manually confirmed PonponPay payment - Invoice ID: {$invoiceId}, Order No: {$orderNo}");
+                logActivity("Admin manually confirmed PolyPay payment - Invoice ID: {$invoiceId}, Order No: {$orderNo}");
                 echo json_encode([
                     'success' => true,
                     'message' => 'Payment status updated to paid',
@@ -140,15 +140,15 @@ function getTransactionDetails()
     // Get invoice info
     $invoice = Capsule::table('tblinvoices')->find($invoiceId);
 
-    if (!$invoice || $invoice->paymentmethod !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'Invoice not found or not using PonponPay payment']);
+    if (!$invoice || $invoice->paymentmethod !== 'polypay') {
+        echo json_encode(['success' => false, 'message' => 'Invoice not found or not using PolyPay payment']);
         return;
     }
 
     // Get payment records
     $payments = Capsule::table('tblaccounts')
         ->where('invoiceid', $invoiceId)
-        ->where('gateway', 'ponponpay')
+        ->where('gateway', 'polypay')
         ->get();
 
     $paymentDetails = [];
@@ -179,18 +179,18 @@ function getTransactionDetails()
  */
 function testApiConnection()
 {
-    $config = getGatewayVariables('ponponpay');
+    $config = getGatewayVariables('polypay');
 
-    if (empty($config) || $config['type'] !== 'ponponpay') {
-        echo json_encode(['success' => false, 'message' => 'PonponPay gateway not configured']);
+    if (empty($config) || $config['type'] !== 'polypay') {
+        echo json_encode(['success' => false, 'message' => 'PolyPay gateway not configured']);
         return;
     }
 
-    require_once dirname(__FILE__) . '/lib/PonponPayApi.php';
+    require_once dirname(__FILE__) . '/lib/PolyPayApi.php';
 
     try {
         $apiUrl = $config['test_mode'] ? $config['test_api_url'] : $config['api_url'];
-        $api = new PonponPayApi($config['api_key'], $apiUrl);
+        $api = new PolyPayApi($config['api_key'], $apiUrl);
 
         $result = $api->testConnection();
 

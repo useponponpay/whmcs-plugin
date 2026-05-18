@@ -1,17 +1,17 @@
 <?php
 /**
- * PonponPay WHMCS Callback Handler
+ * PolyPay WHMCS Callback Handler
  *
- * 处理来自PonponPay系统的支付回调通知
+ * 处理来自PolyPay系统的支付回调通知
  *
- * @author PonponPay开发团队
+ * @author PolyPay开发团队
  * @version 2.0.0
  */
 
 /**
  * 定位 WHMCS 根目录（兼容软链接部署）。
  */
-function ponponpay_resolve_whmcs_root()
+function polypay_resolve_whmcs_root()
 {
     $candidates = [];
 
@@ -32,7 +32,7 @@ function ponponpay_resolve_whmcs_root()
     return null;
 }
 
-$whmcsRoot = ponponpay_resolve_whmcs_root();
+$whmcsRoot = polypay_resolve_whmcs_root();
 if (!$whmcsRoot) {
     http_response_code(500);
     exit('WHMCS bootstrap not found');
@@ -42,9 +42,9 @@ require_once $whmcsRoot . '/init.php';
 require_once $whmcsRoot . '/includes/gatewayfunctions.php';
 require_once $whmcsRoot . '/includes/invoicefunctions.php';
 
-// 引入配置文件以确保 ponponpay_get_api_url 函数可用
-if (file_exists($whmcsRoot . '/includes/hooks/ponponpay_config.php')) {
-    require_once $whmcsRoot . '/includes/hooks/ponponpay_config.php';
+// 引入配置文件以确保 polypay_get_api_url 函数可用
+if (file_exists($whmcsRoot . '/includes/hooks/polypay_config.php')) {
+    require_once $whmcsRoot . '/includes/hooks/polypay_config.php';
 }
 
 # 注释掉Capsule，使用传统方法
@@ -83,7 +83,7 @@ function callBackendAPI($url, $data, $apiKey)
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
             'X-API-Key: ' . $apiKey,
-            'User-Agent: WHMCS-PonponPay-Callback/2.0'
+            'User-Agent: WHMCS-PolyPay-Callback/2.0'
         ]
     ]);
 
@@ -119,11 +119,11 @@ function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
     }
 
     $apiKey = trim((string)($gatewayParams['api_key'] ?? ''));
-    if ($apiKey === '' || !function_exists('ponponpay_get_api_url')) {
+    if ($apiKey === '' || !function_exists('polypay_get_api_url')) {
         return 0;
     }
 
-    $apiUrl = rtrim(ponponpay_get_api_url(), '/');
+    $apiUrl = rtrim(polypay_get_api_url(), '/');
     $detailUrl = $apiUrl . '/api/v1/pay/sdk/order/detail';
 
     $candidates = [
@@ -138,14 +138,14 @@ function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
                 return (int)$matches[1];
             }
         } catch (Throwable $e) {
-            error_log("[PonponPay Callback] 订单回查失败(" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "): " . $e->getMessage());
+            error_log("[PolyPay Callback] 订单回查失败(" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "): " . $e->getMessage());
         }
     }
 
     return 0;
 }
 
-// ponponpay_get_api_url 函数已移至 includes/hooks/ponponpay_config.php
+// polypay_get_api_url 函数已移至 includes/hooks/polypay_config.php
 
 /**
  * 验证回调来源和签名
@@ -171,7 +171,7 @@ function validateCallback($data, $secret)
 function logCallback($data, $message = 'Callback received')
 {
     if (function_exists('logTransaction')) {
-        logTransaction('PonponPay', $data, $message);
+        logTransaction('PolyPay', $data, $message);
     }
 }
 
@@ -208,9 +208,9 @@ function consumeCallbackNonce($nonce, $timestamp)
         return false;
     }
 
-    $baseDir = __DIR__ . '/../../../storage/cache/ponponpay_nonce';
+    $baseDir = __DIR__ . '/../../../storage/cache/polypay_nonce';
     if (!is_dir($baseDir) && !@mkdir($baseDir, 0755, true) && !is_dir($baseDir)) {
-        $baseDir = rtrim(sys_get_temp_dir(), '/\\') . '/ponponpay_nonce';
+        $baseDir = rtrim(sys_get_temp_dir(), '/\\') . '/polypay_nonce';
         if (!is_dir($baseDir) && !@mkdir($baseDir, 0755, true) && !is_dir($baseDir)) {
             return false;
         }
@@ -250,21 +250,21 @@ function buildCallbackSignature($timestamp, $nonce, $rawBody, $apiKey)
 try {
     // 获取回调数据
     $input = file_get_contents('php://input');
-    error_log("[PonponPay Callback] ==================== 新回调请求 ====================");
-    error_log("[PonponPay Callback] 原始输入: " . $input);
-    error_log("[PonponPay Callback] Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
-    error_log("[PonponPay Callback] Request Method: " . ($_SERVER['REQUEST_METHOD'] ?? 'unknown'));
+    error_log("[PolyPay Callback] ==================== 新回调请求 ====================");
+    error_log("[PolyPay Callback] 原始输入: " . $input);
+    error_log("[PolyPay Callback] Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
+    error_log("[PolyPay Callback] Request Method: " . ($_SERVER['REQUEST_METHOD'] ?? 'unknown'));
     
     $data = json_decode($input, true);
-    error_log("[PonponPay Callback] JSON 解析结果: " . ($data ? 'SUCCESS' : 'FAILED'));
+    error_log("[PolyPay Callback] JSON 解析结果: " . ($data ? 'SUCCESS' : 'FAILED'));
 
     if (!$data) {
         // 如果不是JSON，尝试从POST获取
-        error_log("[PonponPay Callback] JSON 解析失败，尝试使用 POST 数据");
+        error_log("[PolyPay Callback] JSON 解析失败，尝试使用 POST 数据");
         $data = $_POST;
-        error_log("[PonponPay Callback] POST 数据: " . json_encode($_POST, JSON_UNESCAPED_UNICODE));
+        error_log("[PolyPay Callback] POST 数据: " . json_encode($_POST, JSON_UNESCAPED_UNICODE));
     } else {
-        error_log("[PonponPay Callback] 解析后的数据: " . json_encode($data, JSON_UNESCAPED_UNICODE));
+        error_log("[PolyPay Callback] 解析后的数据: " . json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
     // 记录回调日志（包含原始输入用于调试）
@@ -275,13 +275,13 @@ try {
     ], 'Payment callback received');
 
     // 验证必要字段
-    error_log("[PonponPay Callback] 开始验证必要字段...");
-    error_log("[PonponPay Callback] order_no: " . ($data['order_no'] ?? '【缺失】'));
-    error_log("[PonponPay Callback] status: " . ($data['status'] ?? '【缺失】'));
+    error_log("[PolyPay Callback] 开始验证必要字段...");
+    error_log("[PolyPay Callback] order_no: " . ($data['order_no'] ?? '【缺失】'));
+    error_log("[PolyPay Callback] status: " . ($data['status'] ?? '【缺失】'));
     
     if (empty($data['order_no']) || empty($data['status'])) {
-        error_log("[PonponPay Callback] ❌ 验证失败：缺少必要字段");
-        error_log("[PonponPay Callback] 所有接收到的字段: " . json_encode(array_keys($data), JSON_UNESCAPED_UNICODE));
+        error_log("[PolyPay Callback] ❌ 验证失败：缺少必要字段");
+        error_log("[PolyPay Callback] 所有接收到的字段: " . json_encode(array_keys($data), JSON_UNESCAPED_UNICODE));
         logCallback([
             'error' => 'Missing required fields',
             'order_no' => $data['order_no'] ?? 'missing',
@@ -292,30 +292,30 @@ try {
         echo 'Invalid callback data: missing order_no or status';
         exit;
     }
-    error_log("[PonponPay Callback] ✅ 必要字段验证通过");
+    error_log("[PolyPay Callback] ✅ 必要字段验证通过");
 
     // 从订单号中提取发票ID
     // 主格式: WHMCS_{invoice_id}_{hash}
     // 兼容格式: 非 WHMCS 格式时回查后端订单详情解析 mch_order_id
-    error_log("[PonponPay Callback] 开始验证订单号格式...");
-    error_log("[PonponPay Callback] 订单号: " . $data['order_no']);
+    error_log("[PolyPay Callback] 开始验证订单号格式...");
+    error_log("[PolyPay Callback] 订单号: " . $data['order_no']);
 
     // 获取网关配置（后续签名验证和回查都需要）
-    error_log("[PonponPay Callback] 获取网关配置...");
-    $gatewayParams = getGatewayVariables('ponponpay');
+    error_log("[PolyPay Callback] 获取网关配置...");
+    $gatewayParams = getGatewayVariables('polypay');
     if (!$gatewayParams['type']) {
-        error_log("[PonponPay Callback] ❌ 网关未配置");
+        error_log("[PolyPay Callback] ❌ 网关未配置");
         http_response_code(500);
         echo 'Gateway not configured';
         exit;
     }
-    error_log("[PonponPay Callback] ✅ 网关配置正常");
+    error_log("[PolyPay Callback] ✅ 网关配置正常");
 
     $invoiceId = resolveInvoiceIdFromOrderNo($data['order_no'], $gatewayParams);
     if ($invoiceId <= 0) {
-        error_log("[PonponPay Callback] ❌ 订单号格式错误");
-        error_log("[PonponPay Callback] 期望格式: WHMCS_{invoice_id}_{hash} 或可回查到对应 mch_order_id");
-        error_log("[PonponPay Callback] 实际格式: " . $data['order_no']);
+        error_log("[PolyPay Callback] ❌ 订单号格式错误");
+        error_log("[PolyPay Callback] 期望格式: WHMCS_{invoice_id}_{hash} 或可回查到对应 mch_order_id");
+        error_log("[PolyPay Callback] 实际格式: " . $data['order_no']);
         logCallback([
             'error' => 'Invalid order number format',
             'order_no' => $data['order_no'],
@@ -326,7 +326,7 @@ try {
         exit;
     }
 
-    error_log("[PonponPay Callback] ✅ 订单号格式正确，提取到发票ID: " . $invoiceId);
+    error_log("[PolyPay Callback] ✅ 订单号格式正确，提取到发票ID: " . $invoiceId);
 
     // 严格回调鉴权：签名 + 时间戳 + nonce，不再兼容旧 API Key 直比逻辑。
     $expectedApiKey = trim((string)($gatewayParams['api_key'] ?? ''));
@@ -335,21 +335,21 @@ try {
     $receivedNonce = $_SERVER['HTTP_X_NONCE'] ?? '';
     $receivedSignature = strtolower(trim((string)($_SERVER['HTTP_X_SIGNATURE'] ?? '')));
 
-    error_log("[PonponPay Callback] 开始验证签名头...");
-    error_log("[PonponPay Callback] X-Key-Prefix: " . ($receivedPrefix ? substr($receivedPrefix, 0, 12) . '...' : '【缺失】'));
-    error_log("[PonponPay Callback] X-Timestamp: " . ($receivedTimestamp ?: '【缺失】'));
-    error_log("[PonponPay Callback] X-Nonce: " . ($receivedNonce ? substr($receivedNonce, 0, 8) . '...' : '【缺失】'));
-    error_log("[PonponPay Callback] X-Signature: " . ($receivedSignature ? substr($receivedSignature, 0, 12) . '...' : '【缺失】'));
+    error_log("[PolyPay Callback] 开始验证签名头...");
+    error_log("[PolyPay Callback] X-Key-Prefix: " . ($receivedPrefix ? substr($receivedPrefix, 0, 12) . '...' : '【缺失】'));
+    error_log("[PolyPay Callback] X-Timestamp: " . ($receivedTimestamp ?: '【缺失】'));
+    error_log("[PolyPay Callback] X-Nonce: " . ($receivedNonce ? substr($receivedNonce, 0, 8) . '...' : '【缺失】'));
+    error_log("[PolyPay Callback] X-Signature: " . ($receivedSignature ? substr($receivedSignature, 0, 12) . '...' : '【缺失】'));
 
     if ($expectedApiKey === '') {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：网关 API Key 未配置");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：网关 API Key 未配置");
         http_response_code(500);
         echo 'Gateway API key not configured';
         exit;
     }
 
     if ($receivedPrefix === '' || $receivedTimestamp === '' || $receivedNonce === '' || $receivedSignature === '') {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：缺少必要签名头");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：缺少必要签名头");
         logCallback(['error' => 'Missing signature headers', 'headers' => getRequestHeadersSafe()], 'Signature validation failed');
         http_response_code(401);
         echo 'Unauthorized: Missing signature headers';
@@ -357,7 +357,7 @@ try {
     }
 
     if (!ctype_digit($receivedTimestamp)) {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：时间戳格式非法");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：时间戳格式非法");
         http_response_code(401);
         echo 'Unauthorized: Invalid timestamp';
         exit;
@@ -366,7 +366,7 @@ try {
     $now = time();
     $ts = (int)$receivedTimestamp;
     if (abs($now - $ts) > 300) {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：时间戳超出有效窗口");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：时间戳超出有效窗口");
         http_response_code(401);
         echo 'Unauthorized: Timestamp expired';
         exit;
@@ -374,14 +374,14 @@ try {
 
     $expectedPrefix = substr($expectedApiKey, 0, 12);
     if ($receivedPrefix !== $expectedPrefix) {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：Key Prefix 不匹配");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：Key Prefix 不匹配");
         http_response_code(401);
         echo 'Unauthorized: Invalid key prefix';
         exit;
     }
 
     if (!consumeCallbackNonce($receivedNonce, $receivedTimestamp)) {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：重复 nonce 或 nonce 无效");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：重复 nonce 或 nonce 无效");
         http_response_code(409);
         echo 'Conflict: Nonce already used';
         exit;
@@ -389,7 +389,7 @@ try {
 
     $expectedSignature = buildCallbackSignature($receivedTimestamp, $receivedNonce, $input, $expectedApiKey);
     if (!hash_equals($expectedSignature, $receivedSignature)) {
-        error_log("[PonponPay Callback] ❌ 签名验证失败：签名不匹配");
+        error_log("[PolyPay Callback] ❌ 签名验证失败：签名不匹配");
         logCallback([
             'error' => 'Invalid signature',
             'received_signature' => substr($receivedSignature, 0, 12) . '...',
@@ -400,29 +400,29 @@ try {
         exit;
     }
 
-    error_log("[PonponPay Callback] ✅ 签名验证通过");
+    error_log("[PolyPay Callback] ✅ 签名验证通过");
     
     // 检查发票是否存在
-    error_log("[PonponPay Callback] 检查发票是否存在: " . $invoiceId);
+    error_log("[PolyPay Callback] 检查发票是否存在: " . $invoiceId);
     $invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
     if ($invoice['result'] !== 'success') {
-        error_log("[PonponPay Callback] ❌ 发票不存在: " . $invoiceId);
+        error_log("[PolyPay Callback] ❌ 发票不存在: " . $invoiceId);
         http_response_code(404);
         echo 'Invoice not found';
         exit;
     }
-    error_log("[PonponPay Callback] ✅ 发票存在，当前状态: " . $invoice['status']);
+    error_log("[PolyPay Callback] ✅ 发票存在，当前状态: " . $invoice['status']);
 
     // 检查发票状态
     if (strtolower($invoice['status']) === 'paid') {
-        error_log("[PonponPay Callback] ⚠️ 发票已支付，跳过处理");
+        error_log("[PolyPay Callback] ⚠️ 发票已支付，跳过处理");
         echo 'OK'; // 已经支付过了
         exit;
     }
 
     // 处理不同的支付状态
     // 支持数字状态码：1-等待支付，2-支付成功，3-已过期，4-取消支付，5-人工充值
-    error_log("[PonponPay Callback] 处理支付状态: " . $data['status']);
+    error_log("[PolyPay Callback] 处理支付状态: " . $data['status']);
     
     $status = $data['status'];
     // 如果是字符串状态，转为小写
@@ -434,7 +434,7 @@ try {
         // 数字状态码
         case 1: // 等待支付
         case '1':
-            error_log("[PonponPay Callback] 📝 处理等待支付状态 (状态码: 1)");
+            error_log("[PolyPay Callback] 📝 处理等待支付状态 (状态码: 1)");
             handlePendingPayment($invoiceId, $data);
             break;
 
@@ -442,26 +442,26 @@ try {
         case 5: // 人工充值
         case '2':
         case '5':
-            error_log("[PonponPay Callback] 📝 处理支付成功状态 (状态码: {$status})");
+            error_log("[PolyPay Callback] 📝 处理支付成功状态 (状态码: {$status})");
             handleSuccessfulPayment($invoiceId, $data, $gatewayParams);
             break;
 
         case 3: // 已过期
         case '3':
-            error_log("[PonponPay Callback] 📝 处理支付过期状态 (状态码: 3)");
+            error_log("[PolyPay Callback] 📝 处理支付过期状态 (状态码: 3)");
             handleExpiredPayment($invoiceId, $data);
             break;
 
         case 4: // 取消支付
         case '4':
-            error_log("[PonponPay Callback] 📝 处理支付取消状态 (状态码: 4)");
+            error_log("[PolyPay Callback] 📝 处理支付取消状态 (状态码: 4)");
             handleFailedPayment($invoiceId, $data);
             break;
 
         default:
-            error_log("[PonponPay Callback] ❌ 未知的支付状态: " . $data['status']);
-            error_log("[PonponPay Callback] 允许的状态: 1-等待支付, 2-支付成功, 3-已过期, 4-取消支付, 5-人工充值");
-            error_log("[PonponPay Callback] 或文本状态: paid, success, completed, failed, error, expired, timeout, pending, waiting");
+            error_log("[PolyPay Callback] ❌ 未知的支付状态: " . $data['status']);
+            error_log("[PolyPay Callback] 允许的状态: 1-等待支付, 2-支付成功, 3-已过期, 4-取消支付, 5-人工充值");
+            error_log("[PolyPay Callback] 或文本状态: paid, success, completed, failed, error, expired, timeout, pending, waiting");
             logCallback([
                 'error' => 'Unknown payment status',
                 'status' => $data['status'],
@@ -476,15 +476,15 @@ try {
             exit;
     }
 
-    error_log("[PonponPay Callback] ✅ 回调处理完成，返回 OK");
-    error_log("[PonponPay Callback] ==================== 回调处理结束 ====================");
+    error_log("[PolyPay Callback] ✅ 回调处理完成，返回 OK");
+    error_log("[PolyPay Callback] ==================== 回调处理结束 ====================");
     echo 'OK';
 
 } catch (Throwable $e) {
-    error_log("[PonponPay Callback] ❌❌❌ 异常发生 ❌❌❌");
-    error_log("[PonponPay Callback] 异常信息: " . $e->getMessage());
-    error_log("[PonponPay Callback] 异常位置: " . $e->getFile() . ':' . $e->getLine());
-    error_log("[PonponPay Callback] 堆栈跟踪:\n" . $e->getTraceAsString());
+    error_log("[PolyPay Callback] ❌❌❌ 异常发生 ❌❌❌");
+    error_log("[PolyPay Callback] 异常信息: " . $e->getMessage());
+    error_log("[PolyPay Callback] 异常位置: " . $e->getFile() . ':' . $e->getLine());
+    error_log("[PolyPay Callback] 堆栈跟踪:\n" . $e->getTraceAsString());
     logCallback(['error' => $e->getMessage()], 'Callback error');
     http_response_code(500);
     echo 'Internal error';
@@ -495,30 +495,30 @@ try {
  */
 function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
 {
-    error_log("[PonponPay Callback] >>> 进入 handleSuccessfulPayment 函数");
-    error_log("[PonponPay Callback] 发票ID: " . $invoiceId);
-    error_log("[PonponPay Callback] 交易哈希: " . ($data['tx_hash'] ?? $data['transaction_id'] ?? 'N/A'));
+    error_log("[PolyPay Callback] >>> 进入 handleSuccessfulPayment 函数");
+    error_log("[PolyPay Callback] 发票ID: " . $invoiceId);
+    error_log("[PolyPay Callback] 交易哈希: " . ($data['tx_hash'] ?? $data['transaction_id'] ?? 'N/A'));
     
     try {
         // 验证支付金额
         $invoiceData = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
         $expectedAmount = floatval($invoiceData['total']);
-        error_log("[PonponPay Callback] 发票应付金额: " . $expectedAmount . " " . $invoiceData['currencycode']);
+        error_log("[PolyPay Callback] 发票应付金额: " . $expectedAmount . " " . $invoiceData['currencycode']);
 
         // 添加发票支付记录（订单已在后端创建，这里只需要标记 WHMCS 发票为已支付）
-        error_log("[PonponPay Callback] 添加发票支付记录...");
+        error_log("[PolyPay Callback] 添加发票支付记录...");
         $transactionId = $data['transaction_id'] ?? $data['tx_hash'] ?? $data['order_no'];
-        error_log("[PonponPay Callback] 交易ID: " . $transactionId);
+        error_log("[PolyPay Callback] 交易ID: " . $transactionId);
         
         addInvoicePayment(
             $invoiceId,
             $transactionId,
             $expectedAmount,
             0, // 无手续费
-            'ponponpay'
+            'polypay'
         );
 
-        error_log("[PonponPay Callback] ✅ 发票支付记录已添加");
+        error_log("[PolyPay Callback] ✅ 发票支付记录已添加");
         logCallback($data, 'Payment successful for invoice: ' . $invoiceId);
 
         // 发送支付成功邮件（可选）
@@ -532,17 +532,17 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
         if (stripos($message, 'Duplicate Transaction ID') !== false
             || stripos($message, 'already exists') !== false
             || stripos($message, 'already paid') !== false) {
-            error_log("[PonponPay Callback] ⚠️ 幂等命中，视为成功: " . $message);
+            error_log("[PolyPay Callback] ⚠️ 幂等命中，视为成功: " . $message);
             logCallback(['warning' => $message, 'invoice_id' => $invoiceId], 'Idempotent success');
             return;
         }
 
-        error_log("[PonponPay Callback] ❌ handleSuccessfulPayment 异常: " . $message);
+        error_log("[PolyPay Callback] ❌ handleSuccessfulPayment 异常: " . $message);
         logCallback(['error' => $e->getMessage(), 'invoice_id' => $invoiceId], 'Error processing successful payment');
         throw $e;
     }
     
-    error_log("[PonponPay Callback] <<< 退出 handleSuccessfulPayment 函数");
+    error_log("[PolyPay Callback] <<< 退出 handleSuccessfulPayment 函数");
 }
 
 /**
@@ -550,7 +550,7 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
  */
 function handleFailedPayment($invoiceId, $data)
 {
-    error_log("[PonponPay Callback] 处理支付失败，发票ID: " . $invoiceId);
+    error_log("[PolyPay Callback] 处理支付失败，发票ID: " . $invoiceId);
     logCallback($data, 'Payment failed for invoice: ' . $invoiceId);
     
     // WHMCS 发票保持未支付状态，不需要额外处理
@@ -562,7 +562,7 @@ function handleFailedPayment($invoiceId, $data)
  */
 function handleExpiredPayment($invoiceId, $data)
 {
-    error_log("[PonponPay Callback] 处理支付过期，发票ID: " . $invoiceId);
+    error_log("[PolyPay Callback] 处理支付过期，发票ID: " . $invoiceId);
     logCallback($data, 'Payment expired for invoice: ' . $invoiceId);
     
     // WHMCS 发票保持未支付状态，不需要额外处理
@@ -574,7 +574,7 @@ function handleExpiredPayment($invoiceId, $data)
  */
 function handlePendingPayment($invoiceId, $data)
 {
-    error_log("[PonponPay Callback] 处理等待支付，发票ID: " . $invoiceId);
+    error_log("[PolyPay Callback] 处理等待支付，发票ID: " . $invoiceId);
     logCallback($data, 'Payment pending for invoice: ' . $invoiceId);
     
     // WHMCS 发票保持未支付状态，等待后续支付完成回调
@@ -600,7 +600,7 @@ function sendPaymentConfirmationEmail($invoiceId)
         $invoice = mysql_fetch_array(mysql_query("SELECT * FROM tblinvoices WHERE id = '{$invoiceId}'"));
         $client = mysql_fetch_array(mysql_query("SELECT * FROM tblclients WHERE id = '{$invoice['userid']}'"));
 
-        $emailTemplate = 'payment_confirmation_ponponpay';
+        $emailTemplate = 'payment_confirmation_polypay';
         $emailVars = [
             'invoice_id' => $invoiceId,
             'client_name' => $client['firstname'] . ' ' . $client['lastname'],

@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway Module - Index
+ * PolyPay WHMCS Payment Gateway Module - Index
  * Prevent direct access
  */
 
@@ -9,5 +9,5 @@ if (!defined("WHMCS")) {
 }
 
 // Redirect to the main module file
-header("Location: ../ponponpay.php");
+header("Location: ../polypay.php");
 exit;

@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay Callback Handler
+ * PolyPay Callback Handler
  * Handle payment callbacks and status checks
  */
 
@@ -16,16 +16,16 @@ if (!defined("WHMCS")) {
 /**
  * Get payment gateway configuration
  */
-function getPonponPayConfig() {
-    $gatewayParams = getGatewayVariables('ponponpay');
+function getPolyPayConfig() {
+    $gatewayParams = getGatewayVariables('polypay');
     return $gatewayParams;
 }
 
 /**
  * Log transaction
  */
-function ponponpayLog($message, $data = []) {
-    logTransaction('ponponpay', $data, $message);
+function polypayLog($message, $data = []) {
+    logTransaction('polypay', $data, $message);
 }
 
 /**
@@ -40,9 +40,9 @@ function verifyCallbackSignature($data, $signature, $apiKey) {
  * Handle payment callback
  */
 function handlePaymentCallback() {
-    $config = getPonponPayConfig();
+    $config = getPolyPayConfig();
 
-    if (empty($config) || $config['type'] !== 'ponponpay') {
+    if (empty($config) || $config['type'] !== 'polypay') {
         http_response_code(400);
         die('Gateway not configured');
     }
@@ -57,10 +57,10 @@ function handlePaymentCallback() {
     }
 
     // Verify signature
-    $signature = $_SERVER['HTTP_X_PONPONPAY_SIGNATURE']
+    $signature = $_SERVER['HTTP_X_POLYPAY_SIGNATURE']
         ?? '';
     if (!verifyCallbackSignature($data, $signature, $config['api_key'])) {
-        ponponpayLog('Callback signature verification failed', $data);
+        polypayLog('Callback signature verification failed', $data);
         http_response_code(401);
         die('Invalid signature');
     }
@@ -79,12 +79,12 @@ function handlePaymentCallback() {
     // Find corresponding invoice
     $invoice = Capsule::table('tblinvoices')
         ->where(function ($query) use ($orderNo) {
-            $query->where('notes', 'LIKE', "%ponponpay_order:{$orderNo}%");
+            $query->where('notes', 'LIKE', "%polypay_order:{$orderNo}%");
         })
         ->first();
 
     if (!$invoice) {
-        ponponpayLog('Invoice not found', ['order_no' => $orderNo]);
+        polypayLog('Invoice not found', ['order_no' => $orderNo]);
         http_response_code(404);
         die('Invoice not found');
     }
@@ -96,7 +96,7 @@ function handlePaymentCallback() {
         case 'paid':
             // Check if already paid
             if ($invoice->status === 'Paid') {
-                ponponpayLog('Invoice already paid, ignoring duplicate callback', ['invoice_id' => $invoiceId, 'order_no' => $orderNo]);
+                polypayLog('Invoice already paid, ignoring duplicate callback', ['invoice_id' => $invoiceId, 'order_no' => $orderNo]);
                 break;
             }
 
@@ -106,11 +106,11 @@ function handlePaymentCallback() {
                 $txHash, // Transaction ID
                 $actualAmount,
                 0, // Fee
-                'ponponpay'
+                'polypay'
             );
 
             if ($success) {
-                ponponpayLog('Payment successful', [
+                polypayLog('Payment successful', [
                     'invoice_id' => $invoiceId,
                     'order_no' => $orderNo,
                     'tx_hash' => $txHash,
@@ -120,7 +120,7 @@ function handlePaymentCallback() {
                 // Send payment confirmation email
                 sendMessage('Invoice Payment Confirmation', $invoice->userid);
             } else {
-                ponponpayLog('Payment processing failed', [
+                polypayLog('Payment processing failed', [
                     'invoice_id' => $invoiceId,
                     'order_no' => $orderNo
                 ]);
@@ -129,7 +129,7 @@ function handlePaymentCallback() {
 
         case 'failed':
         case 'expired':
-            ponponpayLog('Payment failed or expired', [
+            polypayLog('Payment failed or expired', [
                 'invoice_id' => $invoiceId,
                 'order_no' => $orderNo,
                 'status' => $status
@@ -137,7 +137,7 @@ function handlePaymentCallback() {
             break;
 
         default:
-            ponponpayLog('Unknown payment status', [
+            polypayLog('Unknown payment status', [
                 'invoice_id' => $invoiceId,
                 'order_no' => $orderNo,
                 'status' => $status
@@ -160,9 +160,9 @@ function checkPaymentStatus() {
         return;
     }
 
-    $config = getPonponPayConfig();
+    $config = getPolyPayConfig();
 
-    if (empty($config) || $config['type'] !== 'ponponpay') {
+    if (empty($config) || $config['type'] !== 'polypay') {
         echo json_encode(['success' => false, 'message' => 'Gateway not configured']);
         return;
     }
@@ -176,7 +176,7 @@ function checkPaymentStatus() {
     }
 
     // Extract order number from notes
-    preg_match('/ponponpay_order:([^,\s]+)/', $invoice->notes, $matches);
+    preg_match('/polypay_order:([^,\s]+)/', $invoice->notes, $matches);
     $orderNo = $matches[1] ?? '';
 
     if (!$orderNo) {

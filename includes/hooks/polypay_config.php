@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay Gateway Configuration Hook
+ * PolyPay Gateway Configuration Hook
  * Logs gateway config changes.
  */
 
@@ -8,13 +8,13 @@ if (!defined('WHMCS')) {
 	die('You cannot access this file directly.');
 }
 
-if (defined('PONPONPAY_CONFIG_HOOK_LOADED')) {
+if (defined('POLYPAY_CONFIG_HOOK_LOADED')) {
 	return;
 }
-define('PONPONPAY_CONFIG_HOOK_LOADED', true);
+define('POLYPAY_CONFIG_HOOK_LOADED', true);
 
 // Safe logger
-function ponponpay_log($gateway, $data, $description)
+function polypay_log($gateway, $data, $description)
 {
 	try {
 		// Prefer WHMCS logTransaction
@@ -24,7 +24,7 @@ function ponponpay_log($gateway, $data, $description)
 		}
 
 		// Fallback to file log
-		$logFile = dirname(__DIR__, 2) . '/storage/logs/ponponpay_hook.log';
+		$logFile = dirname(__DIR__, 2) . '/storage/logs/polypay_hook.log';
 		$logDir = dirname($logFile);
 
 		if (!is_dir($logDir)) {
@@ -36,19 +36,19 @@ function ponponpay_log($gateway, $data, $description)
 
 	} catch (Exception $e) {
 		// Swallow errors to avoid impacting flow
-		error_log("PonponPay Hook Log Error: " . $e->getMessage());
+		error_log("PolyPay Hook Log Error: " . $e->getMessage());
 	}
 }
 
 /**
  * Handle gateway config updates (log only).
  */
-function ponponpay_handle_admin_config_update($vars)
+function polypay_handle_admin_config_update($vars)
 {
 	// Log access to gateway config page
 	if ($vars['filename'] === 'configgateways') {
-		ponponpay_log('PonponPay Hook Debug', [
-			'function' => 'ponponpay_handle_admin_config_update',
+		polypay_log('PolyPay Hook Debug', [
+			'function' => 'polypay_handle_admin_config_update',
 			'filename' => $vars['filename'],
 			'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
 			'post_gateway' => $_POST['gateway'] ?? 'none'
@@ -56,25 +56,25 @@ function ponponpay_handle_admin_config_update($vars)
 	}
 
 	// React only on POST for this gateway
-	if ($vars['filename'] === 'configgateways' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['gateway']) && $_POST['gateway'] === 'ponponpay') {
+	if ($vars['filename'] === 'configgateways' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['gateway']) && $_POST['gateway'] === 'polypay') {
 
-		ponponpay_log('PonponPay Hook Debug', [
-			'function' => 'ponponpay_handle_admin_config_update',
+		polypay_log('PolyPay Hook Debug', [
+			'function' => 'polypay_handle_admin_config_update',
 			'step' => 'config_update_detected'
-		], 'PonponPay Config Update Detected');
+		], 'PolyPay Config Update Detected');
 
 		try {
 			// Fetch updated gateway config
-			$gatewayConfig = getGatewayVariables('ponponpay');
+			$gatewayConfig = getGatewayVariables('polypay');
 
 			// Log success
-			ponponpay_log('PonponPay Hook Success', [
+			polypay_log('PolyPay Hook Success', [
 				'api_key' => !empty($gatewayConfig['api_key']) ? substr($gatewayConfig['api_key'], 0, 8) . '...' : 'empty',
 				'message' => 'Gateway config updated'
 			], 'Config Update Success');
 
 		} catch (Exception $e) {
-			ponponpay_log('PonponPay Hook Error', [
+			polypay_log('PolyPay Hook Error', [
 				'error' => $e->getMessage(),
 				'request_uri' => $_SERVER['REQUEST_URI'] ?? ''
 			], 'Config Update Failed');
@@ -88,7 +88,7 @@ function ponponpay_handle_admin_config_update($vars)
 /**
  * Call API via hook
  */
-function ponponpay_call_api_via_hook($url, $data, $apiKey)
+function polypay_call_api_via_hook($url, $data, $apiKey)
 {
 	$ch = curl_init();
 	curl_setopt_array($ch, [
@@ -100,7 +100,7 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 		CURLOPT_HTTPHEADER => [
 			'Content-Type: application/json',
 			'Authorization: Bearer ' . $apiKey,
-			'User-Agent: WHMCS-PonponPay-Hook/2.0'
+			'User-Agent: WHMCS-PolyPay-Hook/2.0'
 		]
 	]);
 
@@ -110,7 +110,7 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 	curl_close($ch);
 
 	// Log API call result
-	ponponpay_log('PonponPay Hook Debug', [
+	polypay_log('PolyPay Hook Debug', [
 		'url' => $url,
 		'http_code' => $httpCode,
 		'curl_error' => $error ?: 'none',
@@ -118,7 +118,7 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 	], 'API Call Result');
 
 	if ($error) {
-		ponponpay_log('PonponPay Hook Error', [
+		polypay_log('PolyPay Hook Error', [
 			'url' => $url,
 			'curl_error' => $error
 		], 'API Curl Error');
@@ -126,7 +126,7 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 	}
 
 	if ($httpCode !== 200) {
-		ponponpay_log('PonponPay Hook Error', [
+		polypay_log('PolyPay Hook Error', [
 			'url' => $url,
 			'http_code' => $httpCode,
 			'response' => substr($response, 0, 500)
@@ -137,7 +137,7 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 	$decoded = json_decode($response, true);
 
 	if ($decoded === null) {
-		ponponpay_log('PonponPay Hook Error', [
+		polypay_log('PolyPay Hook Error', [
 			'url' => $url,
 			'response' => substr($response, 0, 500)
 		], 'API JSON Decode Error');
@@ -150,13 +150,13 @@ function ponponpay_call_api_via_hook($url, $data, $apiKey)
 /**
  * API server URL helper
  */
-if (!function_exists('ponponpay_get_api_url')) {
-	function ponponpay_get_api_url()
+if (!function_exists('polypay_get_api_url')) {
+	function polypay_get_api_url()
 	{
-		return 'https://api.ponponpay.com';
+		return 'https://api.polypay.ai';
 		// return 'http://127.0.0.1:11050';
 	}
 }
 
 // Register hook on admin pages
-add_hook('AdminAreaPage', 1, 'ponponpay_handle_admin_config_update');
+add_hook('AdminAreaPage', 1, 'polypay_handle_admin_config_update');

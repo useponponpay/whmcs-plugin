@@ -1,10 +1,10 @@
 <?php
 /**
- * PonponPay API Client
- * Client class for interacting with PonponPay API
+ * PolyPay API Client
+ * Client class for interacting with PolyPay API
  */
 
-class PonponPayApi
+class PolyPayApi
 {
     private $apiKey;
     private $apiUrl;
@@ -69,7 +69,7 @@ class PonponPayApi
         $headers = [
             'Authorization: Bearer ' . $this->apiKey,
             'Content-Type: application/json',
-            'User-Agent: WHMCS-PonponPay/2.0'
+            'User-Agent: WHMCS-PolyPay/2.0'
         ];
 
         $ch = curl_init();

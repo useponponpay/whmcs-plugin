@@ -1,6 +1,6 @@
-# Плагин платёжного шлюза PonponPay для WHMCS
+# Плагин платёжного шлюза PolyPay для WHMCS
 
-Принимайте криптовалютные платежи (USDT, USDC и др.) в вашей системе биллинга WHMCS через [PonponPay](https://ponponpay.com).
+Принимайте криптовалютные платежи (USDT, USDC и др.) в вашей системе биллинга WHMCS через [PolyPay](https://polypay.ai).
 
 Поддерживаемые сети: **Tron (TRC20)** · **Ethereum (ERC20)** · **BSC (BEP20)** · **Polygon** · **Solana**
 
@@ -8,9 +8,9 @@
 
 ## Предварительные требования
 
-> **⚠️ Перед установкой этого плагина необходимо выполнить следующие шаги на [ponponpay.com](https://ponponpay.com):**
+> **⚠️ Перед установкой этого плагина необходимо выполнить следующие шаги на [polypay.ai](https://polypay.ai):**
 
-1. **Зарегистрировать аккаунт** — Перейдите на [https://ponponpay.com](https://ponponpay.com) и зарегистрируйтесь
+1. **Зарегистрировать аккаунт** — Перейдите на [https://polypay.ai](https://polypay.ai) и зарегистрируйтесь
 2. **Добавить адрес кошелька** — Перейдите в **Управление кошельками** и добавьте хотя бы один кошелёк для приёма платежей (напр. адрес USDT TRC20)
 3. **Включить валюты** — Выберите, какие криптовалюты (USDT, USDC и др.) принимает каждый кошелёк
 4. **Получить API Key** — Перейдите на страницу **API-ключей** и сгенерируйте API Key для интеграции с WHMCS
@@ -24,11 +24,11 @@
 Скопируйте следующие файлы в корневой каталог вашего WHMCS:
 
 ```
-ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
-├── includes/hooks/ponponpay_config.php  →  includes/hooks/ponponpay_config.php
-├── modules/gateways/ponponpay.php       →  modules/gateways/ponponpay.php
-├── modules/gateways/callback/ponponpay.php → modules/gateways/callback/ponponpay.php
-└── modules/gateways/ponponpay/          →  modules/gateways/ponponpay/
+polypay-plugin/                        →  YOUR_WHMCS_ROOT/
+├── includes/hooks/polypay_config.php  →  includes/hooks/polypay_config.php
+├── modules/gateways/polypay.php       →  modules/gateways/polypay.php
+├── modules/gateways/callback/polypay.php → modules/gateways/callback/polypay.php
+└── modules/gateways/polypay/          →  modules/gateways/polypay/
 ```
 
 ---
@@ -37,8 +37,8 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 
 1. Войдите в **Панель администратора WHMCS**
 2. Перейдите в **Настройки → Платежи → Платёжные шлюзы**
-3. Найдите **PonponPay** и нажмите **Активировать**
-4. Введите **API Key**, полученный на [ponponpay.com](https://ponponpay.com)
+3. Найдите **PolyPay** и нажмите **Активировать**
+4. Введите **API Key**, полученный на [polypay.ai](https://polypay.ai)
 5. Нажмите **Сохранить изменения**
 
 ---
@@ -49,9 +49,9 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 Клиент оформляет заказ → WHMCS создаёт счёт
     → Автоматическое перенаправление на страницу счёта
     → Клиент выбирает сеть и валюту (напр. Tron - USDT)
-    → Плагин создаёт платёжный ордер через API PonponPay
+    → Плагин создаёт платёжный ордер через API PolyPay
     → Клиент завершает криптовалютный платёж
-    → PonponPay отправляет callback → WHMCS отмечает счёт как оплаченный
+    → PolyPay отправляет callback → WHMCS отмечает счёт как оплаченный
 ```
 
 ---
@@ -60,7 +60,7 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 
 | Проблема | Решение |
 |----------|---------|
-| «Нет доступных способов оплаты» | Убедитесь, что вы добавили кошельки и включили валюты на [ponponpay.com](https://ponponpay.com) |
+| «Нет доступных способов оплаты» | Убедитесь, что вы добавили кошельки и включили валюты на [polypay.ai](https://polypay.ai) |
 | Callback платежа не получен | Проверьте, что ваш сервер WHMCS доступен публично и URL callback'а корректен |
 | Ошибка валидации API Key | Проверьте, что API Key верен и не истёк |
 
@@ -68,5 +68,5 @@ ponponpay-plugin/                        →  YOUR_WHMCS_ROOT/
 
 ## Ссылки
 
-- **Консоль PonponPay**: [https://ponponpay.com](https://ponponpay.com)
-- **Документация**: [https://ponponpay.com/docs](https://ponponpay.com/docs)
+- **Консоль PolyPay**: [https://polypay.ai](https://polypay.ai)
+- **Документация**: [https://polypay.ai/docs](https://polypay.ai/docs)

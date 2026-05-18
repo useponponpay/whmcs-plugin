@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway Hooks
+ * PolyPay WHMCS Payment Gateway Hooks
  *
  * Provides hook functions for order status changes and payment notifications
  */
@@ -21,9 +21,9 @@ add_hook('InvoicePaid', 1, function ($vars) {
 	// Get invoice info
 	$invoice = localAPI('GetInvoice', array('invoiceid' => $invoiceId));
 
-	if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'ponponpay') {
+	if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'polypay') {
 		// Log payment success
-		logActivity(ponponpay_lang('order_paid_log', $invoiceId));
+		logActivity(polypay_lang('order_paid_log', $invoiceId));
 	}
 });
 
@@ -36,9 +36,9 @@ add_hook('InvoiceCancelled', 1, function ($vars) {
 	// Get invoice info
 	$invoice = localAPI('GetInvoice', array('invoiceid' => $invoiceId));
 
-	if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'ponponpay') {
+	if ($invoice['result'] == 'success' && $invoice['paymentmethod'] == 'polypay') {
 		// Log order cancellation
-		logActivity(ponponpay_lang('order_cancelled_log', $invoiceId));
+		logActivity(polypay_lang('order_cancelled_log', $invoiceId));
 	}
 });
 
@@ -47,7 +47,7 @@ add_hook('InvoiceCancelled', 1, function ($vars) {
  */
 add_hook('ClientAreaHeadOutput', 1, function ($vars) {
 	if ($vars['filename'] == 'viewinvoice') {
-		return '<script src="modules/gateways/ponponpay/ponponpay.js"></script>';
+		return '<script src="modules/gateways/polypay/polypay.js"></script>';
 	}
 });
 
@@ -56,10 +56,10 @@ add_hook('ClientAreaHeadOutput', 1, function ($vars) {
  */
 add_hook('AdminAreaHeadOutput', 1, function ($vars) {
 	if ($vars['filename'] == 'invoices') {
-		$checkFailedMsg = ponponpay_lang('check_failed');
+		$checkFailedMsg = polypay_lang('check_failed');
 		return '<script>
-            function checkPonponPayStatus(invoiceId) {
-                jQuery.post("modules/gateways/ponponpay/admin_check.php", {
+            function checkPolyPayStatus(invoiceId) {
+                jQuery.post("modules/gateways/polypay/admin_check.php", {
                     action: "check_status",
                     invoice_id: invoiceId
                 }, function(data) {
@@ -82,7 +82,7 @@ add_hook('AfterShoppingCartCheckout', 1, function ($vars) {
 
 	if (!empty($invoiceId)) {
 		$invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
-		if ($invoice['result'] === 'success' && $invoice['paymentmethod'] === 'ponponpay') {
+		if ($invoice['result'] === 'success' && $invoice['paymentmethod'] === 'polypay') {
 			header('Location: viewinvoice.php?id=' . $invoiceId);
 			exit;
 		}

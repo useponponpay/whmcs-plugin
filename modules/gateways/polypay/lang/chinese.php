@@ -1,9 +1,9 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway - Chinese Language File
+ * PolyPay WHMCS Payment Gateway - Chinese Language File
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -11,11 +11,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-$_PONPONPAY_LANG = [
+$_POLYPAY_LANG = [
     // Meta & Config
-    'gateway_name' => 'PonponPay',
+    'gateway_name' => 'PolyPay',
     'gateway_description' => '专业的加密货币支付网关，支持 USDT、BTC、ETH 等多种货币，覆盖 Tron、Ethereum、Polygon、Solana 等多条链。安全可靠的收款服务。',
-    'friendly_name' => 'PonponPay - 加密货币支付网关',
+    'friendly_name' => 'PolyPay - 加密货币支付网关',
     
     // Config descriptions
     'config_api_credentials' => '🔐 API 凭证',
@@ -26,7 +26,7 @@ $_PONPONPAY_LANG = [
     'config_wallets_desc' => '添加收款地址',
     'config_payments' => '支付',
     'config_payments_desc' => '启用网络和货币',
-    'config_open_console' => '打开 ponponpay.com',
+    'config_open_console' => '打开 polypay.ai',
     
     // Payment selection page
     'invoice_already_paid' => '账单已支付',
@@ -66,7 +66,7 @@ $_PONPONPAY_LANG = [
     'order_expired' => '订单已过期',
     
     // Basic payment (no API)
-    'basic_payment_title' => 'PonponPay 加密货币支付',
+    'basic_payment_title' => 'PolyPay 加密货币支付',
     'setup_reminder' => '设置提醒：',
     'setup_reminder_desc' => '请在网关设置中配置以下项目以启用完整功能：',
     'setup_merchant_id' => '商户 ID',
@@ -93,8 +93,8 @@ $_PONPONPAY_LANG = [
     'settings_saved_unverified' => '💡 注意：设置已保存，但在凭证验证之前网关可能无法正常工作。',
     
     // Activation/Deactivation
-    'gateway_activated' => 'PonponPay 网关已激活。订单将通过后端 API 记录。',
-    'gateway_deactivated' => 'PonponPay 网关已停用。',
+    'gateway_activated' => 'PolyPay 网关已激活。订单将通过后端 API 记录。',
+    'gateway_deactivated' => 'PolyPay 网关已停用。',
     
     // Network names
     'network_tron' => 'Tron (TRC20)',
@@ -128,7 +128,7 @@ $_PONPONPAY_LANG = [
     'status_unknown' => '未知状态',
     
     // Hooks
-    'order_paid_log' => 'PonponPay：订单 #%d 支付成功',
-    'order_cancelled_log' => 'PonponPay：订单 #%d 已取消',
+    'order_paid_log' => 'PolyPay：订单 #%d 支付成功',
+    'order_cancelled_log' => 'PolyPay：订单 #%d 已取消',
     'check_failed' => '检查失败：',
 ];

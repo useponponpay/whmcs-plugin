@@ -1,9 +1,9 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway - Japanese Language File
+ * PolyPay WHMCS Payment Gateway - Japanese Language File
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -11,11 +11,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-$_PONPONPAY_LANG = [
+$_POLYPAY_LANG = [
     // Meta & Config
-    'gateway_name' => 'PonponPay',
+    'gateway_name' => 'PolyPay',
     'gateway_description' => 'USDT、BTC、ETHなど複数の通貨をサポートし、Tron、Ethereum、Polygon、Solanaなど複数のチェーンに対応したプロフェッショナルな暗号通貨決済ゲートウェイ。安全で信頼性の高い決済サービス。',
-    'friendly_name' => 'PonponPay - 暗号通貨決済ゲートウェイ',
+    'friendly_name' => 'PolyPay - 暗号通貨決済ゲートウェイ',
     
     // Config descriptions
     'config_api_credentials' => '🔐 API認証情報',
@@ -26,7 +26,7 @@ $_PONPONPAY_LANG = [
     'config_wallets_desc' => '受取アドレスを追加',
     'config_payments' => '決済',
     'config_payments_desc' => 'ネットワークと通貨を有効化',
-    'config_open_console' => 'ponponpay.comを開く',
+    'config_open_console' => 'polypay.aiを開く',
     
     // Payment selection page
     'invoice_already_paid' => '請求書は支払い済みです',
@@ -66,7 +66,7 @@ $_PONPONPAY_LANG = [
     'order_expired' => '注文の有効期限が切れました',
     
     // Basic payment (no API)
-    'basic_payment_title' => 'PonponPay 暗号通貨決済',
+    'basic_payment_title' => 'PolyPay 暗号通貨決済',
     'setup_reminder' => '設定リマインダー：',
     'setup_reminder_desc' => '完全な機能を有効にするには、ゲートウェイ設定で以下の項目を設定してください：',
     'setup_merchant_id' => 'マーチャントID',
@@ -93,8 +93,8 @@ $_PONPONPAY_LANG = [
     'settings_saved_unverified' => '💡 注意：設定は保存されましたが、認証情報が確認されるまでゲートウェイが機能しない可能性があります。',
     
     // Activation/Deactivation
-    'gateway_activated' => 'PonponPayゲートウェイがアクティベートされました。注文はバックエンドAPIを通じて記録されます。',
-    'gateway_deactivated' => 'PonponPayゲートウェイが無効化されました。',
+    'gateway_activated' => 'PolyPayゲートウェイがアクティベートされました。注文はバックエンドAPIを通じて記録されます。',
+    'gateway_deactivated' => 'PolyPayゲートウェイが無効化されました。',
     
     // Network names
     'network_tron' => 'Tron (TRC20)',
@@ -128,7 +128,7 @@ $_PONPONPAY_LANG = [
     'status_unknown' => '不明なステータス',
     
     // Hooks
-    'order_paid_log' => 'PonponPay：注文 #%d 支払い成功',
-    'order_cancelled_log' => 'PonponPay：注文 #%d キャンセル',
+    'order_paid_log' => 'PolyPay：注文 #%d 支払い成功',
+    'order_cancelled_log' => 'PolyPay：注文 #%d キャンセル',
     'check_failed' => '確認失敗：',
 ];

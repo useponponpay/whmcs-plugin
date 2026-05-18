@@ -1,9 +1,9 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway - German Language File
+ * PolyPay WHMCS Payment Gateway - German Language File
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -11,11 +11,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-$_PONPONPAY_LANG = [
+$_POLYPAY_LANG = [
     // Meta & Config
-    'gateway_name' => 'PonponPay',
+    'gateway_name' => 'PolyPay',
     'gateway_description' => 'Professionelles Krypto-Zahlungsgateway mit Unterstützung für USDT, BTC, ETH und mehr auf Tron, Ethereum, Polygon, Solana usw. Sichere und zuverlässige Zahlungsabwicklung.',
-    'friendly_name' => 'PonponPay - Krypto-Zahlungsgateway',
+    'friendly_name' => 'PolyPay - Krypto-Zahlungsgateway',
     
     // Config descriptions
     'config_api_credentials' => '🔐 API-Zugangsdaten',
@@ -26,7 +26,7 @@ $_PONPONPAY_LANG = [
     'config_wallets_desc' => 'Empfangsadressen hinzufügen',
     'config_payments' => 'Zahlungen',
     'config_payments_desc' => 'Netzwerke und Währungen aktivieren',
-    'config_open_console' => 'ponponpay.com öffnen',
+    'config_open_console' => 'polypay.ai öffnen',
     
     // Payment selection page
     'invoice_already_paid' => 'Rechnung bereits bezahlt',
@@ -66,7 +66,7 @@ $_PONPONPAY_LANG = [
     'order_expired' => 'Auftrag abgelaufen',
     
     // Basic payment (no API)
-    'basic_payment_title' => 'PonponPay Krypto-Zahlung',
+    'basic_payment_title' => 'PolyPay Krypto-Zahlung',
     'setup_reminder' => 'Einrichtungserinnerung:',
     'setup_reminder_desc' => 'Bitte konfigurieren Sie die folgenden Elemente in den Gateway-Einstellungen, um die volle Funktionalität zu aktivieren:',
     'setup_merchant_id' => 'Händler-ID',
@@ -93,8 +93,8 @@ $_PONPONPAY_LANG = [
     'settings_saved_unverified' => '💡 Hinweis: Die Einstellungen wurden gespeichert, aber das Gateway funktioniert möglicherweise nicht, bis die Zugangsdaten verifiziert sind.',
     
     // Activation/Deactivation
-    'gateway_activated' => 'PonponPay-Gateway aktiviert. Aufträge werden über die Backend-API aufgezeichnet.',
-    'gateway_deactivated' => 'Das PonponPay-Gateway wurde deaktiviert.',
+    'gateway_activated' => 'PolyPay-Gateway aktiviert. Aufträge werden über die Backend-API aufgezeichnet.',
+    'gateway_deactivated' => 'Das PolyPay-Gateway wurde deaktiviert.',
     
     // Network names
     'network_tron' => 'Tron (TRC20)',
@@ -128,7 +128,7 @@ $_PONPONPAY_LANG = [
     'status_unknown' => 'Unbekannter Status',
     
     // Hooks
-    'order_paid_log' => 'PonponPay: Auftrag #%d Zahlung erfolgreich',
-    'order_cancelled_log' => 'PonponPay: Auftrag #%d storniert',
+    'order_paid_log' => 'PolyPay: Auftrag #%d Zahlung erfolgreich',
+    'order_cancelled_log' => 'PolyPay: Auftrag #%d storniert',
     'check_failed' => 'Prüfung fehlgeschlagen: ',
 ];

@@ -1,10 +1,10 @@
 /**
- * PonponPay JavaScript Functions
+ * PolyPay JavaScript Functions
  * Handle frontend interactions and payment flow
  */
 
 // Global configuration
-var PonponPay = {
+var PolyPay = {
     config: {
         checkInterval: 5000, // Check payment status every 5 seconds
         maxCheckTimes: 120,  // Maximum check for 10 minutes
@@ -22,26 +22,26 @@ var PonponPay = {
         // Copy address button
         jQuery(document).on('click', '.coinpay-copy-address', function() {
             var address = jQuery(this).data('address');
-            PonponPay.copyToClipboard(address);
-            PonponPay.showMessage('Address copied to clipboard', 'success');
+            PolyPay.copyToClipboard(address);
+            PolyPay.showMessage('Address copied to clipboard', 'success');
         });
 
         // Copy amount button
         jQuery(document).on('click', '.coinpay-copy-amount', function() {
             var amount = jQuery(this).data('amount');
-            PonponPay.copyToClipboard(amount);
-            PonponPay.showMessage('Amount copied to clipboard', 'success');
+            PolyPay.copyToClipboard(amount);
+            PolyPay.showMessage('Amount copied to clipboard', 'success');
         });
 
         // View QR code
         jQuery(document).on('click', '.coinpay-show-qr', function() {
             var qrUrl = jQuery(this).data('qr');
-            PonponPay.showQRCode(qrUrl);
+            PolyPay.showQRCode(qrUrl);
         });
 
         // Manual check payment status
         jQuery(document).on('click', '.coinpay-check-payment', function() {
-            PonponPay.checkPaymentStatus();
+            PolyPay.checkPaymentStatus();
         });
     },
 
@@ -62,7 +62,7 @@ var PonponPay = {
         var checkTimer = setInterval(function() {
             self.config.currentCheckTimes++;
 
-            jQuery.post('modules/gateways/ponponpay/callback.php', {
+            jQuery.post('modules/gateways/polypay/callback.php', {
                 action: 'check_status',
                 invoice_id: invoiceId
             }, function(response) {
@@ -99,21 +99,21 @@ var PonponPay = {
 
         jQuery('.coinpay-check-payment').prop('disabled', true).text('Checking...');
 
-        jQuery.post('modules/gateways/ponponpay/callback.php', {
+        jQuery.post('modules/gateways/polypay/callback.php', {
             action: 'check_status',
             invoice_id: invoiceId
         }, function(response) {
             if (response.success) {
                 if (response.data.status === 'paid') {
-                    PonponPay.showMessage('Payment successful! Page will refresh...', 'success');
+                    PolyPay.showMessage('Payment successful! Page will refresh...', 'success');
                     setTimeout(function() {
                         location.reload();
                     }, 2000);
                 } else {
-                    PonponPay.showMessage('Payment status: ' + response.data.status_text, 'info');
+                    PolyPay.showMessage('Payment status: ' + response.data.status_text, 'info');
                 }
             } else {
-                PonponPay.showMessage('Check failed: ' + response.message, 'error');
+                PolyPay.showMessage('Check failed: ' + response.message, 'error');
             }
         }, 'json').always(function() {
             jQuery('.coinpay-check-payment').prop('disabled', false).text('Check Payment Status');
@@ -191,5 +191,5 @@ var PonponPay = {
 
 // Initialize when page is loaded
 jQuery(document).ready(function() {
-    PonponPay.init();
+    PolyPay.init();
 });

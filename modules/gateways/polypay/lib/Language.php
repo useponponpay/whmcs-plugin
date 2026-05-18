@@ -1,11 +1,11 @@
 <?php
 /**
- * PonponPay Language Helper
+ * PolyPay Language Helper
  *
- * Handles multi-language support for the PonponPay payment gateway.
+ * Handles multi-language support for the PolyPay payment gateway.
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -14,9 +14,9 @@ if (!defined("WHMCS")) {
 }
 
 /**
- * PonponPay Language Class
+ * PolyPay Language Class
  */
-class PonponPayLanguage
+class PolyPayLanguage
 {
     /**
      * @var array Language strings
@@ -34,7 +34,7 @@ class PonponPayLanguage
     private static $loaded = false;
 
     /**
-     * Language mapping from WHMCS language names to PonponPay language files
+     * Language mapping from WHMCS language names to PolyPay language files
      */
     private static $languageMap = [
         'english' => 'english',
@@ -100,7 +100,7 @@ class PonponPayLanguage
                 }
             } catch (Exception $e) {
                 // Silently fail and continue to fallback methods
-                error_log("[PonponPay] Failed to get user language: " . $e->getMessage());
+                error_log("[PolyPay] Failed to get user language: " . $e->getMessage());
             }
         }
 
@@ -150,8 +150,8 @@ class PonponPayLanguage
 
         if (file_exists($langFile)) {
             include $langFile;
-            if (isset($_PONPONPAY_LANG) && is_array($_PONPONPAY_LANG)) {
-                self::$lang = $_PONPONPAY_LANG;
+            if (isset($_POLYPAY_LANG) && is_array($_POLYPAY_LANG)) {
+                self::$lang = $_POLYPAY_LANG;
             }
         }
 
@@ -247,7 +247,7 @@ class PonponPayLanguage
  * @param mixed ...$args Optional sprintf arguments
  * @return string Translated string
  */
-function ponponpay_lang($key, ...$args)
+function polypay_lang($key, ...$args)
 {
-    return PonponPayLanguage::get($key, ...$args);
+    return PolyPayLanguage::get($key, ...$args);
 }

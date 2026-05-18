@@ -1,9 +1,9 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway - Spanish Language File
+ * PolyPay WHMCS Payment Gateway - Spanish Language File
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -11,11 +11,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-$_PONPONPAY_LANG = [
+$_POLYPAY_LANG = [
     // Meta & Config
-    'gateway_name' => 'PonponPay',
+    'gateway_name' => 'PolyPay',
     'gateway_description' => 'Pasarela de pago cripto profesional que soporta USDT, BTC, ETH y más en Tron, Ethereum, Polygon, Solana, etc. Cobros seguros y confiables.',
-    'friendly_name' => 'PonponPay - Pasarela de Pago Cripto',
+    'friendly_name' => 'PolyPay - Pasarela de Pago Cripto',
     
     // Config descriptions
     'config_api_credentials' => '🔐 Credenciales API',
@@ -26,7 +26,7 @@ $_PONPONPAY_LANG = [
     'config_wallets_desc' => 'agregar direcciones de recepción',
     'config_payments' => 'Pagos',
     'config_payments_desc' => 'habilitar redes y monedas',
-    'config_open_console' => 'Abrir ponponpay.com',
+    'config_open_console' => 'Abrir polypay.ai',
     
     // Payment selection page
     'invoice_already_paid' => 'Factura ya pagada',
@@ -66,7 +66,7 @@ $_PONPONPAY_LANG = [
     'order_expired' => 'Orden expirada',
     
     // Basic payment (no API)
-    'basic_payment_title' => 'Pago Cripto PonponPay',
+    'basic_payment_title' => 'Pago Cripto PolyPay',
     'setup_reminder' => 'Recordatorio de configuración:',
     'setup_reminder_desc' => 'Configure los siguientes elementos en la configuración de la pasarela para habilitar la funcionalidad completa:',
     'setup_merchant_id' => 'ID de Comerciante',
@@ -93,8 +93,8 @@ $_PONPONPAY_LANG = [
     'settings_saved_unverified' => '💡 Nota: La configuración se guardó, pero la pasarela puede no funcionar hasta que se verifiquen las credenciales.',
     
     // Activation/Deactivation
-    'gateway_activated' => 'Pasarela PonponPay activada. Las órdenes se registrarán a través de la API del backend.',
-    'gateway_deactivated' => 'La pasarela PonponPay ha sido desactivada.',
+    'gateway_activated' => 'Pasarela PolyPay activada. Las órdenes se registrarán a través de la API del backend.',
+    'gateway_deactivated' => 'La pasarela PolyPay ha sido desactivada.',
     
     // Network names
     'network_tron' => 'Tron (TRC20)',
@@ -128,7 +128,7 @@ $_PONPONPAY_LANG = [
     'status_unknown' => 'Estado desconocido',
     
     // Hooks
-    'order_paid_log' => 'PonponPay: Orden #%d pago exitoso',
-    'order_cancelled_log' => 'PonponPay: Orden #%d cancelada',
+    'order_paid_log' => 'PolyPay: Orden #%d pago exitoso',
+    'order_cancelled_log' => 'PolyPay: Orden #%d cancelada',
     'check_failed' => 'Verificación fallida: ',
 ];

@@ -1,9 +1,9 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway - Russian Language File
+ * PolyPay WHMCS Payment Gateway - Russian Language File
  *
- * @package    PonponPay
- * @author     PonponPay Engineering
+ * @package    PolyPay
+ * @author     PolyPay Engineering
  * @version    2.0.0
  */
 
@@ -11,11 +11,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-$_PONPONPAY_LANG = [
+$_POLYPAY_LANG = [
     // Meta & Config
-    'gateway_name' => 'PonponPay',
+    'gateway_name' => 'PolyPay',
     'gateway_description' => 'Профессиональный криптовалютный платежный шлюз с поддержкой USDT, BTC, ETH и других валют на Tron, Ethereum, Polygon, Solana и т.д. Безопасный и надежный прием платежей.',
-    'friendly_name' => 'PonponPay - Криптовалютный Платежный Шлюз',
+    'friendly_name' => 'PolyPay - Криптовалютный Платежный Шлюз',
     
     // Config descriptions
     'config_api_credentials' => '🔐 API Учетные данные',
@@ -26,7 +26,7 @@ $_PONPONPAY_LANG = [
     'config_wallets_desc' => 'добавить адреса получения',
     'config_payments' => 'Платежи',
     'config_payments_desc' => 'включить сети и валюты',
-    'config_open_console' => 'Открыть ponponpay.com',
+    'config_open_console' => 'Открыть polypay.ai',
     
     // Payment selection page
     'invoice_already_paid' => 'Счет уже оплачен',
@@ -66,7 +66,7 @@ $_PONPONPAY_LANG = [
     'order_expired' => 'Заказ истек',
     
     // Basic payment (no API)
-    'basic_payment_title' => 'Криптовалютный Платеж PonponPay',
+    'basic_payment_title' => 'Криптовалютный Платеж PolyPay',
     'setup_reminder' => 'Напоминание о настройке:',
     'setup_reminder_desc' => 'Пожалуйста, настройте следующие элементы в настройках шлюза для включения полной функциональности:',
     'setup_merchant_id' => 'ID Продавца',
@@ -93,8 +93,8 @@ $_PONPONPAY_LANG = [
     'settings_saved_unverified' => '💡 Примечание: Настройки сохранены, но шлюз может не работать до проверки учетных данных.',
     
     // Activation/Deactivation
-    'gateway_activated' => 'Шлюз PonponPay активирован. Заказы будут записываться через backend API.',
-    'gateway_deactivated' => 'Шлюз PonponPay был деактивирован.',
+    'gateway_activated' => 'Шлюз PolyPay активирован. Заказы будут записываться через backend API.',
+    'gateway_deactivated' => 'Шлюз PolyPay был деактивирован.',
     
     // Network names
     'network_tron' => 'Tron (TRC20)',
@@ -128,7 +128,7 @@ $_PONPONPAY_LANG = [
     'status_unknown' => 'Неизвестный статус',
     
     // Hooks
-    'order_paid_log' => 'PonponPay: Заказ #%d платеж успешен',
-    'order_cancelled_log' => 'PonponPay: Заказ #%d отменен',
+    'order_paid_log' => 'PolyPay: Заказ #%d платеж успешен',
+    'order_cancelled_log' => 'PolyPay: Заказ #%d отменен',
     'check_failed' => 'Проверка не удалась: ',
 ];

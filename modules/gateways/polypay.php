@@ -1,6 +1,6 @@
 <?php
 /**
- * PonponPay WHMCS Payment Gateway Module - Main Entry Point
+ * PolyPay WHMCS Payment Gateway Module - Main Entry Point
  *
  * Crypto payment gateway entry point that loads the implementation in the folder.
  */
@@ -10,10 +10,10 @@ if (!defined("WHMCS")) {
 }
 
 // 加载文件夹内的主要实现
-require_once __DIR__ . '/ponponpay/ponponpay_main.php';
+require_once __DIR__ . '/polypay/polypay_main.php';
 
 // 加载API客户端
-require_once __DIR__ . '/ponponpay/lib/PonponPayApi.php';
+require_once __DIR__ . '/polypay/lib/PolyPayApi.php';
 
-// 注意：所有的 ponponpay_* 函数都在 ponponpay_main.php 中定义
+// 注意：所有的 polypay_* 函数都在 polypay_main.php 中定义
 // 这个文件只是作为入口点，保持WHMCS的兼容性
