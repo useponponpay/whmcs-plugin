@@ -43,6 +43,18 @@ polypay-plugin/                     →  YOUR_WHMCS_ROOT/
 4. Enter the **API Key** obtained from [polypay.ai](https://polypay.ai)
 5. Click **Save Changes**
 
+### Sandbox Testing
+
+To test WHMCS without real blockchain payments:
+
+1. Create a sandbox API key in the PolyPay dashboard. Sandbox keys start with `sk_sandbox_`.
+2. Enter that sandbox key in the WHMCS PolyPay gateway configuration.
+3. Create a WHMCS invoice and choose PolyPay as the payment method.
+4. In the PolyPay dashboard, open **Orders**, switch to **Sandbox**, and simulate the order state.
+5. Open **Webhooks**, switch to **Sandbox**, and inspect the delivery result.
+
+The API URL remains the production API host. PolyPay separates sandbox and production behavior by the API key environment.
+
 ---
 
 ## Directory Structure
