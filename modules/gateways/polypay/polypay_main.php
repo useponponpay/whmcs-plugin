@@ -84,7 +84,6 @@ function polypay_config()
  */
 function polypay_link(array $params)
 {
-	echo '<form action="' . $params['returnurl'] . '" method="post">';
 	// Add debug log when payment link is invoked
 	polypay_safe_log('PolyPay Debug', [
 		'function' => 'polypay_link',
@@ -125,8 +124,49 @@ function polypay_render_api_payment($params)
 		return '<div class="alert alert-success">' . polypay_lang('invoice_already_paid') . '</div>';
 	}
 
-	// 直接跳转到 payment-frontend 的支付方式选择页
+	if (!polypay_is_checkout_submit($params)) {
+		return polypay_render_checkout_button($params);
+	}
+
 	return polypay_render_hosted_checkout($params);
+}
+
+/**
+ * Determine whether the buyer explicitly clicked the PolyPay payment button.
+ */
+function polypay_is_checkout_submit($params)
+{
+	$invoiceId = (string)($params['invoiceid'] ?? '');
+	$postedAction = $_POST['polypay_action'] ?? '';
+	$postedInvoiceId = (string)($_POST['polypay_invoice_id'] ?? '');
+
+	return $postedAction === 'checkout' && $postedInvoiceId === $invoiceId;
+}
+
+/**
+ * Render the manual payment button on the WHMCS invoice page.
+ */
+function polypay_render_checkout_button($params)
+{
+	$action = htmlspecialchars($_SERVER['REQUEST_URI'] ?? $params['returnurl'], ENT_QUOTES);
+	$invoiceId = htmlspecialchars((string)($params['invoiceid'] ?? ''), ENT_QUOTES);
+	$amount = htmlspecialchars((string)($params['amount'] ?? '0'), ENT_QUOTES);
+	$currency = htmlspecialchars((string)($params['currency'] ?? ''), ENT_QUOTES);
+
+	return '
+    <div class="coinpay-payment-container" style="max-width: 500px; margin: 0 auto; padding: 24px 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff; text-align: center;">
+        <h3 style="color: #333; margin-bottom: 12px;">' . polypay_lang('choose_payment_method') . '</h3>
+        <p style="margin: 0 0 18px 0; color: #666;">
+            <strong>' . polypay_lang('invoice_amount') . ':</strong> ' . $amount . ' ' . $currency . '
+        </p>
+        <form action="' . $action . '" method="post" style="margin: 0;">
+            <input type="hidden" name="polypay_action" value="checkout">
+            <input type="hidden" name="polypay_invoice_id" value="' . $invoiceId . '">
+            <button type="submit" style="display: inline-block; padding: 12px 24px; font-size: 16px; border: 0; border-radius: 4px; background-color: #007bff; color: white; cursor: pointer;">
+                ' . polypay_lang('continue_to_payment') . '
+            </button>
+        </form>
+    </div>';
 }
 
 /**
