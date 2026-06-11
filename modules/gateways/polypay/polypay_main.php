@@ -113,6 +113,9 @@ function polypay_link(array $params)
 
 /**
  * Render API-based payment.
+ *
+ * 不再使用插件内部的支付方式选择页，统一跳转到 payment-frontend 的
+ * Hosted Checkout 页面，由前端完成支付方式的选择与支付。
  */
 function polypay_render_api_payment($params)
 {
@@ -122,144 +125,91 @@ function polypay_render_api_payment($params)
 		return '<div class="alert alert-success">' . polypay_lang('invoice_already_paid') . '</div>';
 	}
 
-	// Handle order creation request
-	if (isset($_GET['act']) && $_GET['act'] === 'create_order') {
-		return polypay_create_api_order($params);
-	}
-
-	// Handle order status check
-	if (isset($_GET['act']) && $_GET['act'] === 'check_status') {
-		return polypay_check_order_status($params);
-	}
-
-	// Check existing order
-	try {
-		$existingOrder = polypay_check_existing_order($params);
-		if ($existingOrder) {
-			// If exists, jump to payment page directly
-			$tradeId = $existingOrder['data']['trade_id'] ?? '';
-			$paymentUrl = $existingOrder['data']['payment_url'] ?? '';
-			if (empty($paymentUrl) && !empty($tradeId)) {
-				$paymentUrl = polypay_get_api_url() . '/pay/' . $tradeId;
-			}
-
-			if (!empty($paymentUrl)) {
-				echo '<script>window.open("' . htmlspecialchars($paymentUrl) . '", "_blank");</script>';
-				return '<div style="text-align: center; padding: 20px;">' . polypay_lang('payment_page_opened') . '</div>';
-			}
-		}
-	} catch (Exception $e) {
-		// log and continue to selection page
-		error_log("[PolyPay] Check existing order failed: " . $e->getMessage());
-	}
-
-	// Render payment selection
-	return polypay_render_payment_selection($params);
+	// 直接跳转到 payment-frontend 的支付方式选择页
+	return polypay_render_hosted_checkout($params);
 }
 
 /**
- * Render payment selection page.
+ * Build the hosted checkout URL via backend and render a redirect page.
+ *
+ * 调用后端 /order/checkout 接口（不传 currency/network），获取 payment-frontend
+ * 的 Hosted Checkout 跳转链接，再由浏览器跳转到该页面进行支付方式选择。
  */
-function polypay_render_payment_selection($params)
+function polypay_render_hosted_checkout($params)
 {
-	// Ensure required params exist
-	$params['amount'] = $params['amount'] ?? 0;
-	$params['exchange_rate'] = $params['exchange_rate'] ?? 1.0;
-	$params['currency'] = $params['currency'] ?? 'CNY';
-
-	$supportedOptions = [];
-
-	// Prefer fetching merchant payment methods from backend
 	try {
+		// 生成稳定的商户订单号，保证后端去重以及回调能解析出发票ID
+		// 格式：WHMCS_{invoiceid}_{8位hash}
+		$hashSource = $params['api_key'] . '_' . $params['invoiceid'];
+		$hash = substr(md5($hashSource), 0, 8);
+		$orderNo = 'WHMCS_' . $params['invoiceid'] . '_' . $hash;
+
+		// 回调与支付完成跳转地址（均使用 WHMCS 系统URL）
+		$systemUrl = rtrim($params['systemurl'], '/');
+		$notifyUrl = $systemUrl . '/modules/gateways/callback/polypay.php';
+		$redirectUrl = $params['returnurl'];
+
+		// 金额换算：发票金额 / 汇率（无汇率时按 1:1）
+		$amount = floatval($params['amount']) / floatval($params['exchange_rate'] ?: 1.0);
+
+		// 不传 currency/network，让 payment-frontend 展示支付方式选择页
+		$checkoutData = [
+			'mch_order_id' => $orderNo,
+			'amount'       => $amount,
+			'notify_url'   => $notifyUrl,
+			'redirect_url' => $redirectUrl,
+			'locale'       => polypay_get_checkout_locale(),
+		];
+
+		error_log("[PolyPay] Building hosted checkout for invoice: " . $params['invoiceid'] . ", order: " . $orderNo);
+
 		$apiUrl = polypay_get_api_url();
-		// Backend derives merchant from auth; use POST
-		$paymentMethods = polypay_call_api(
-			$apiUrl . '/api/v1/pay/sdk/payment-methods',
-			[],
-			$params['api_key']
-		);
+		$response = polypay_call_api($apiUrl . '/api/v1/pay/sdk/order/checkout', $checkoutData, $params['api_key']);
 
-		// Use backend-provided methods when available
-		$methodsList = null;
-		if ($paymentMethods && isset($paymentMethods['data'])) {
-			if (!empty($paymentMethods['data']['methods'])) {
-				$methodsList = $paymentMethods['data']['methods'];
-			}
+		// 兼容 checkout_url / payment_url 两个返回字段
+		$checkoutUrl = $response['data']['checkout_url'] ?? ($response['data']['payment_url'] ?? '');
+		if (empty($checkoutUrl)) {
+			throw new Exception($response['message'] ?? polypay_lang('failed_create_order'));
 		}
 
-		if ($methodsList && !empty($methodsList)) {
-			error_log("[PolyPay] Using backend payment methods, count: " . count($methodsList));
+		polypay_safe_log('PolyPay Checkout', [
+			'order_no'     => $orderNo,
+			'invoice_id'   => $params['invoiceid'],
+			'amount'       => $amount,
+			'checkout_url' => $checkoutUrl,
+		], 'Hosted Checkout URL Created');
 
-			foreach ($methodsList as $method) {
-				$network = $method['network'] ?? '';
-				// 后端按网络分组返回 currencies 数组，需展开为 flat 列表
-				$currencies = $method['currencies'] ?? [];
-				// 兼容旧格式：如果有单独的 currency 字段
-				if (empty($currencies) && !empty($method['currency'])) {
-					$currencies = [$method['currency']];
-				}
-
-				if (!empty($network) && !empty($currencies)) {
-					foreach ($currencies as $currency) {
-						$key = $network . '_' . $currency;
-						$displayName = polypay_get_network_display_name($network) . ' - ' . $currency;
-						$supportedOptions[$key] = [
-							'network' => $network,
-							'currency' => $currency,
-							'display' => $displayName
-						];
-					}
-				}
-			}
-		}
+		return polypay_render_checkout_redirect($checkoutUrl);
 	} catch (Exception $e) {
-		error_log("[PolyPay] Failed to fetch payment methods: " . $e->getMessage());
+		error_log("[PolyPay] Build hosted checkout failed: " . $e->getMessage());
+		polypay_safe_log('PolyPay Error', [
+			'function'   => 'polypay_render_hosted_checkout',
+			'error'      => $e->getMessage(),
+			'invoice_id' => $params['invoiceid'] ?? 'unknown',
+		], 'Hosted Checkout Failed');
+
+		return polypay_render_error_page($e->getMessage());
 	}
+}
 
-	// Fallback: if nothing available, show error
-	if (empty($supportedOptions)) {
-		error_log("[PolyPay] No available payment channels");
-		return polypay_render_error_page(polypay_lang('no_payment_methods'));
-	}
+/**
+ * Render a page that redirects the buyer to the hosted checkout page.
+ *
+ * 展示一个带加载动画的过渡页，并自动跳转到 payment-frontend 的支付方式选择页；
+ * 同时提供按钮作为兜底（避免浏览器拦截自动跳转）。
+ */
+function polypay_render_checkout_redirect($checkoutUrl)
+{
+	$safeUrl = htmlspecialchars($checkoutUrl, ENT_QUOTES);
 
-	// Use backend options directly
-	$merchantSupportedOptions = $supportedOptions;
-
-	$html = '
-    <div class="coinpay-payment-container" style="max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff;">
-        <div class="payment-header" style="text-align: center; margin-bottom: 30px;">
-            <h3 style="color: #333; margin-bottom: 15px;">' . polypay_lang('choose_payment_method') . '</h3>
-            <div class="payment-info" style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                <p style="margin: 5px 0; color: #666;"><strong>' . polypay_lang('invoice_amount') . ':</strong> ' . htmlspecialchars($params['amount']) . ' ' . htmlspecialchars($params['currency'] ?: 'CNY') . '</p>
-                <p style="margin: 5px 0; color: #666;"><strong>' . polypay_lang('payable_amount') . ':</strong> <span id="crypto-amount">' . polypay_lang('please_select_method') . '</span></p>
-            </div>
-        </div>
-
-        <div class="payment-form">
-            <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #333;">' . polypay_lang('select_network_currency') . '</label>
-                <select id="payment-option" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                    <option value="">' . polypay_lang('please_choose_network') . '</option>';
-
-	foreach ($merchantSupportedOptions as $key => $option) {
-		$html .= '<option value="' . htmlspecialchars($key) . '" data-network="' . htmlspecialchars($option['network']) . '" data-currency="' . htmlspecialchars($option['currency']) . '">' . htmlspecialchars($option['display']) . '</option>';
-	}
-
-	$html .= '
-                </select>
-            </div>
-
-            <button id="create-payment" style="width: 100%; padding: 15px 25px; font-size: 18px; border: none; border-radius: 4px; cursor: pointer; background-color: #007bff; color: white;">
-                <i class="fas fa-coins"></i> ' . polypay_lang('create_crypto_payment') . '
-            </button>
-        </div>
-
-        <div id="loading" style="text-align: center; display: none; margin-top: 20px;">
-            <div style="display: inline-block; width: 3rem; height: 3rem; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p>' . polypay_lang('creating_order') . '</p>
-        </div>
-
-        <div id="error-message" style="display: none; margin-top: 20px; padding: 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24;"></div>
+	return '
+    <div class="coinpay-payment-container" style="max-width: 500px; margin: 0 auto; padding: 30px 20px; border: 1px solid #ddd; border-radius: 8px; background: #fff; text-align: center;">
+        <div style="display: inline-block; width: 3rem; height: 3rem; border: 4px solid #f3f3f3; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+        <h3 style="color: #333; margin-bottom: 10px;">' . polypay_lang('choose_payment_method') . '</h3>
+        <p style="color: #666; margin-bottom: 20px;">' . polypay_lang('redirecting_to_payment') . '</p>
+        <a href="' . $safeUrl . '" id="polypay-checkout-link" style="display: inline-block; padding: 12px 24px; font-size: 16px; border-radius: 4px; background-color: #007bff; color: white; text-decoration: none;">
+            ' . polypay_lang('continue_to_payment') . '
+        </a>
     </div>
 
     <style>
@@ -267,312 +217,41 @@ function polypay_render_payment_selection($params)
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
-    #crypto-amount {
-        font-weight: bold;
-        color: #28a745;
-    }
     </style>
 
     <script>
-    // Helper: add params to URL
-    function addUrlParams(url, params) {
-        const urlObj = new URL(url);
-        Object.keys(params).forEach(key => {
-            urlObj.searchParams.set(key, params[key]);
-        });
-        return urlObj.toString();
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        var exchangeRate = ' . json_encode(floatval($params['exchange_rate'] ?: 1.0)) . ';
-        var originalAmount = ' . json_encode(floatval($params['amount'] ?: 0)) . ';
-
-        var langPleaseSelect = ' . json_encode(polypay_lang('please_select_method')) . ';
-        var langPleaseSelectNetwork = ' . json_encode(polypay_lang('please_select_network')) . ';
-        var langFailedCreateOrder = ' . json_encode(polypay_lang('failed_create_order')) . ';
-        var langNetworkError = ' . json_encode(polypay_lang('network_error_retry')) . ';
-
-        function updateCryptoAmount() {
-            var selectedOption = document.getElementById("payment-option");
-            if (selectedOption.value) {
-                var currency = selectedOption.options[selectedOption.selectedIndex].getAttribute("data-currency");
-                var cryptoAmount = originalAmount / exchangeRate;
-                document.getElementById("crypto-amount").textContent = cryptoAmount + " " + currency;
-            } else {
-                document.getElementById("crypto-amount").textContent = langPleaseSelect;
-            }
-        }
-
-        document.getElementById("payment-option").addEventListener("change", updateCryptoAmount);
-
-        document.getElementById("create-payment").addEventListener("click", function() {
-            var selectedOption = document.getElementById("payment-option");
-
-            if (!selectedOption.value) {
-                showError(langPleaseSelectNetwork);
-                return;
-            }
-
-            var network = selectedOption.options[selectedOption.selectedIndex].getAttribute("data-network");
-            var currency = selectedOption.options[selectedOption.selectedIndex].getAttribute("data-currency");
-
-            showLoading();
-
-            fetch(addUrlParams(window.location.href, {
-                act: "create_order",
-                network: network,
-                currency: currency
-            }))
-                .then(response => response.json())
-                .then(data => {
-                    hideLoading();
-                    if (data.success) {
-                        if (data.redirect_to_frontend && data.payment_url) {
-                            // Open payment page in a new tab
-                            window.open(data.payment_url, "_blank");
-                        } else {
-                            window.location.reload();
-                        }
-                    } else {
-                        showError(data.error || langFailedCreateOrder);
-                    }
-                })
-                .catch(error => {
-                    hideLoading();
-                    showError(langNetworkError);
-                });
-        });
-
-        function showLoading() {
-            document.getElementById("create-payment").disabled = true;
-            document.getElementById("loading").style.display = "block";
-            document.getElementById("error-message").style.display = "none";
-        }
-
-        function hideLoading() {
-            document.getElementById("create-payment").disabled = false;
-            document.getElementById("loading").style.display = "none";
-        }
-
-        function showError(message) {
-            document.getElementById("error-message").textContent = message;
-            document.getElementById("error-message").style.display = "block";
-        }
-    });
+    (function () {
+        var target = ' . json_encode($checkoutUrl) . ';
+        // 自动跳转到 payment-frontend 的支付方式选择页
+        setTimeout(function () {
+            window.location.href = target;
+        }, 800);
+    })();
     </script>';
-
-	return $html;
 }
 
 /**
- * Create API order.
+ * Map the current WHMCS language to a payment-frontend locale code.
+ *
+ * @return string payment-frontend 的语言路径（zh/en/ja...），默认 en
  */
-function polypay_create_api_order($params)
+function polypay_get_checkout_locale()
 {
-	// Clear previous output buffer
-	if (ob_get_level()) {
-		ob_clean();
-	}
-	header('Content-Type: application/json');
+	$map = [
+		'english'    => 'en',
+		'chinese'    => 'zh',
+		'japanese'   => 'ja',
+		'korean'     => 'ko',
+		'spanish'    => 'es',
+		'french'     => 'fr',
+		'german'     => 'de',
+		'portuguese' => 'pt',
+		'russian'    => 'ru',
+		'arabic'     => 'ar',
+	];
 
-	try {
-		$network = $_GET['network'] ?? $params['default_network'];
-		$currency = $_GET['currency'] ?? $params['default_currency'];
-
-		// Create order number using API key + invoice id hash
-		// Format: WHMCS_{invoiceid}_{8-char hash}
-		$hashSource = $params['api_key'] . '_' . $params['invoiceid'];
-		$hash = substr(md5($hashSource), 0, 8);
-		$orderNo = 'WHMCS_' . $params['invoiceid'] . '_' . $hash;
-
-		// Debug: order number
-		error_log("[PolyPay] Generated order number: " . $orderNo . " (invoice: " . $params['invoiceid'] . ")");
-
-		// Callback and redirect URLs (WHMCS system URL)
-		$systemUrl = rtrim($params['systemurl'], '/');
-		$notifyUrl = $systemUrl . '/modules/gateways/callback/polypay.php';
-		$redirectUrl = $params['returnurl'];  // redirect to invoice page after payment
-
-		// Debug callbacks
-		error_log("[PolyPay] Notify URL: " . $notifyUrl);
-		error_log("[PolyPay] Redirect URL: " . $redirectUrl);
-
-		// Prepare backend order payload
-		$orderData = [
-			'mch_order_id' => $orderNo,
-			'currency' => $currency,
-			'network' => polypay_map_network_to_backend($network),
-			'amount' => floatval($params['amount'] / floatval($params['exchange_rate'] ?: 1.0)),
-			'product_no' => 'WHMCS_INVOICE_' . $params['invoiceid'],
-			'type' => 'WHMCS',
-			'notify_url' => $notifyUrl,      // ✅ callback (backend receives payment notice)
-			'redirect_url' => $redirectUrl,  // ✅ redirect after payment
-			'extra' => json_encode([
-				'whmcs_invoice_id' => $params['invoiceid'],
-				'original_amount' => $params['amount'],
-				'original_currency' => $params['currency'],
-				'exchange_rate' => floatval($params['exchange_rate'] ?: 1.0),
-			])
-		];
-
-		// Debug: order creation start
-		error_log("[PolyPay] Creating payment order: " . $orderNo);
-		error_log("[PolyPay] Order payload: " . json_encode($orderData, JSON_UNESCAPED_UNICODE));
-
-		// Call backend order API
-		$apiUrl = polypay_get_api_url();
-		error_log("[PolyPay] Order API: " . $apiUrl . '/api/v1/pay/sdk/order/add');
-
-		$response = polypay_call_api($apiUrl . '/api/v1/pay/sdk/order/add', $orderData, $params['api_key']);
-
-		if ($response && $response['code'] == 0) {
-			// Debug: order created
-			error_log("[PolyPay] Order created: " . $orderNo);
-			error_log("[PolyPay] Order response: " . json_encode($response, JSON_UNESCAPED_UNICODE));
-
-			// Log success
-			polypay_safe_log('PolyPay Order', [
-				'order_no' => $orderNo,
-				'invoice_id' => $params['invoiceid'],
-				'amount' => $orderData['amount'],
-				'currency' => $currency,
-				'network' => $orderData['network']
-			], 'Order Created Successfully');
-
-			// Use payment_url from backend
-			$paymentUrl = $response['data']['payment_url'] ?? '';
-			if (empty($paymentUrl)) {
-				// Fallback build URL
-				$paymentUrl = polypay_get_api_url() . '/pay/' . ($response['data']['trade_id'] ?? '');
-			}
-
-			// Return URL for redirect
-			echo json_encode([
-				'success' => true,
-				'redirect_to_frontend' => true,
-				'trade_id' => $response['data']['trade_id'] ?? null,
-				'payment_url' => $paymentUrl
-			]);
-			exit; // ensure no further output
-
-		} else {
-			// Debug: creation failed
-			error_log("[PolyPay] Order creation failed: " . ($response['message'] ?? 'Unknown error'));
-			error_log("[PolyPay] Failure response: " . json_encode($response, JSON_UNESCAPED_UNICODE));
-			throw new Exception($response['message'] ?? 'Failed to create order');
-		}
-
-	} catch (Exception $e) {
-		polypay_safe_log('PolyPay Error', [
-			'function' => 'polypay_create_api_order',
-			'error' => $e->getMessage(),
-			'invoice_id' => $params['invoiceid']
-		], 'Order Creation Failed');
-
-		echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-	}
-	exit;
-}
-
-/**
- * Check order status.
- */
-function polypay_check_order_status($params)
-{
-	// Clear previous output buffer
-	if (ob_get_level()) {
-		ob_clean();
-	}
-	header('Content-Type: application/json');
-
-	try {
-		// Support order_no or trade_id queries
-		$orderNo = $_GET['order_no'] ?? '';
-		$tradeId = $_GET['trade_id'] ?? '';
-
-		if (empty($orderNo) && empty($tradeId)) {
-			error_log("[PolyPay] Order status check failed: both order_no and trade_id are empty");
-			throw new Exception(polypay_lang('order_number_required'));
-		}
-
-		// Prefer trade_id when provided
-		$queryParam = $tradeId ? $tradeId : $orderNo;
-		$queryField = $tradeId ? 'trade_id' : 'mch_order_id';
-
-		// Debug log
-		error_log("[PolyPay] Checking order status: " . $queryParam . " (field: " . $queryField . ")");
-
-		$apiUrl = polypay_get_api_url();
-		error_log("[PolyPay] Order detail API: " . $apiUrl . '/api/v1/pay/sdk/order/detail');
-
-		$result = polypay_call_api($apiUrl . '/api/v1/pay/sdk/order/detail', [
-			$queryField => $queryParam
-		], $params['api_key']);
-
-		// Debug log
-		error_log("[PolyPay] Order status response: " . json_encode($result, JSON_UNESCAPED_UNICODE));
-
-		echo json_encode(['success' => true, 'data' => $result['data'] ?? null]);
-
-	} catch (Exception $e) {
-		polypay_safe_log('PolyPay Error', [
-			'function' => 'polypay_check_order_status',
-			'error' => $e->getMessage(),
-			'order_no' => $orderNo
-		], 'Order Status Check Failed');
-
-		echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-	}
-	exit;
-}
-
-/**
- * Check if order already exists for this invoice.
- */
-function polypay_check_existing_order($params)
-{
-	try {
-		// Generate order number consistently for lookup
-		$hashSource = $params['api_key'] . '_' . $params['invoiceid'];
-		$hash = substr(md5($hashSource), 0, 8);
-		$orderNo = 'WHMCS_' . $params['invoiceid'] . '_' . $hash;
-
-		// Debug existing order check
-		error_log("[PolyPay] Checking existing order: " . $orderNo);
-
-		$apiUrl = polypay_get_api_url();
-		$result = polypay_call_api($apiUrl . '/api/v1/pay/sdk/order/detail', [
-			'mch_order_id' => $orderNo
-		], $params['api_key']);
-
-		// If API returns data
-		if (isset($result['data']) && !empty($result['data'])) {
-			$orderData = $result['data'];
-
-			// Only return pending orders (status 1)
-			if (isset($orderData['status']) && $orderData['status'] == 1) {
-				// Derive network/currency from order
-				$network = $orderData['network'] ?? 'Tron';
-				$currency = $orderData['currency'] ?? 'USDT';
-
-				error_log("[PolyPay] Found existing order: " . json_encode($orderData, JSON_UNESCAPED_UNICODE));
-
-				return [
-					'data' => $orderData,
-					'network' => $network,
-					'currency' => $currency
-				];
-			} else {
-				error_log("[PolyPay] Order not pending: " . ($orderData['status'] ?? 'unknown'));
-			}
-		}
-
-		return null;
-	} catch (Exception $e) {
-		// Not found or call failed
-		error_log("[PolyPay] Check existing order failed: " . $e->getMessage());
-		return null;
-	}
+	$current = PolyPayLanguage::getCurrentLanguage();
+	return $map[$current] ?? 'en';
 }
 
 /**
@@ -645,39 +324,6 @@ function polypay_plugin_activate($params)
 			'message' => 'Plugin activation failed: ' . $e->getMessage()
 		];
 	}
-}
-
-/**
- * Helper functions.
- */
-function polypay_get_network_display_name($network)
-{
-	$names = [
-		'Tron' => polypay_lang('network_tron'),
-		'Ethereum' => polypay_lang('network_ethereum'),
-		'Polygon' => polypay_lang('network_polygon'),
-		'Solana' => polypay_lang('network_solana')
-	];
-	return $names[$network] ?? $network;
-}
-
-// Map network names to backend enums
-function polypay_map_network_to_backend($network)
-{
-	$mapping = [
-		'Tron' => 'Tron',
-		'TRC20' => 'Tron',
-		'Ethereum' => 'Ethereum',
-		'ERC20' => 'Ethereum',
-		'Polygon' => 'Polygon',
-		'POLYGON' => 'Polygon',
-		'Solana' => 'Solana',
-		'SOLANA' => 'Solana',
-		'SOL' => 'Solana',
-		'BSC' => 'BSC',
-		'BEP20' => 'BSC',
-	];
-	return $mapping[$network] ?? $network;
 }
 
 function polypay_call_api($url, $data, $apiKey)
@@ -873,203 +519,4 @@ function polypay_deactivate($params)
 		'status' => 'success',
 		'description' => polypay_lang('gateway_deactivated')
 	];
-}
-
-/**
- * Render payment page HTML
- */
-function polypay_generate_payment_page($orderData, $currency, $network, $params)
-{
-	$address = $orderData['address'] ?? '';
-	$actualAmount = $orderData['actual_amount'] ?? 0;
-	$expirationTime = $orderData['expiration_time'] ?? 0;
-	$tradeId = $orderData['trade_id'] ?? '';
-
-	// Countdown milliseconds
-	$remainingTime = max(0, $expirationTime - time()) * 1000;
-
-	// Build QR code URL
-	$qrContent = urlencode($address);
-	$qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . $qrContent;
-
-	// Network display name
-	$networkDisplay = polypay_get_network_display_name($network);
-
-	// Language strings for JavaScript
-	$langOrderExpired = polypay_lang('order_expired');
-	$langCopied = polypay_lang('copied');
-	$langChecking = polypay_lang('checking');
-
-	$html = '
-    <div class="coinpay-payment-page" style="width: 100%; max-width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 6px; background: #fff; font-family: Arial, sans-serif; box-sizing: border-box;">
-        <div class="payment-header" style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #333; margin: 0 0 8px 0; font-size: 18px;">' . polypay_lang('crypto_payment') . '</h2>
-            <div class="countdown-timer" style="background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e9ecef;">
-                <div style="color: #666; font-size: 12px; margin-bottom: 3px;">' . polypay_lang('time_remaining') . '</div>
-                <div id="countdown" style="font-size: 20px; font-weight: bold; color: #dc3545;" data-expiration="' . $expirationTime . '">
-                    ' . polypay_lang('calculating') . '
-                </div>
-            </div>
-        </div>
-
-        <div class="payment-info" style="text-align: center; margin-bottom: 20px;">
-            <div style="margin-bottom: 15px;">
-                <div style="font-size: 16px; color: #333; margin-bottom: 3px;">' . polypay_lang('amount_to_pay') . '</div>
-                <div style="font-size: 22px; font-weight: bold; color: #28a745;">' . $actualAmount . ' ' . $currency . '</div>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <div style="font-size: 14px; color: #666; margin-bottom: 8px;">' . polypay_lang('scan_qr_to_pay') . '</div>
-                <img src="' . $qrCodeUrl . '" alt="' . polypay_lang('payment_qr_code') . '" style="max-width: 160px; width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px;">
-            </div>
-        </div>
-
-        <div class="payment-details" style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
-            <div style="margin-bottom: 12px;">
-                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">' . polypay_lang('network') . ':</label>
-                <div style="font-size: 14px; color: #495057;">' . $networkDisplay . '</div>
-            </div>
-
-            <div style="margin-bottom: 0;">
-                <label style="display: block; margin-bottom: 3px; font-weight: bold; color: #333; font-size: 14px;">' . polypay_lang('payment_address') . ':</label>
-                <div style="display: flex; align-items: center; background: white; padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex-wrap: wrap; gap: 8px;">
-                    <input type="text" id="payment-address" value="' . htmlspecialchars($address) . '" readonly
-                           style="flex: 1; min-width: 200px; border: none; outline: none; font-family: monospace; font-size: 12px; background: transparent;">
-                    <button onclick="copyAddress()" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; white-space: nowrap;">
-                        <i class="fas fa-copy"></i> ' . polypay_lang('copy') . '
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="payment-instructions" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-            <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 14px;">' . polypay_lang('payment_tips') . '</h4>
-            <ul style="margin: 0; padding-left: 18px; color: #856404; font-size: 12px; line-height: 1.4;">
-                <li>' . polypay_lang('tip_correct_network', $networkDisplay) . '</li>
-                <li>' . polypay_lang('tip_exact_amount', $actualAmount, $currency) . '</li>
-                <li>' . polypay_lang('tip_complete_before_timer') . '</li>
-                <li>' . polypay_lang('tip_auto_redirect') . '</li>
-            </ul>
-        </div>
-
-        <div class="payment-actions" style="text-align: center; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
-            <button onclick="checkPaymentStatus()" style="padding: 10px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; min-width: 120px; max-width: 150px;">
-                <i class="fas fa-sync"></i> ' . polypay_lang('check_status') . '
-            </button>
-            <button onclick="window.location.reload()" style="padding: 10px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1; min-width: 120px; max-width: 150px;">
-                <i class="fas fa-redo"></i> ' . polypay_lang('refresh_page') . '
-            </button>
-        </div>
-    </div>
-
-    <script>
-        let countdownInterval;
-        let tradeId = "' . $tradeId . '";
-        let langOrderExpired = ' . json_encode($langOrderExpired) . ';
-        let langCopied = ' . json_encode($langCopied) . ';
-        let langChecking = ' . json_encode($langChecking) . ';
-
-        // Copy address
-        function copyAddress() {
-            const addressInput = document.getElementById("payment-address");
-            addressInput.select();
-            document.execCommand("copy");
-
-            // Show success hint
-            const button = event.target.closest("button");
-            const originalText = button.innerHTML;
-            button.innerHTML = "<i class=\"fas fa-check\"></i> " + langCopied;
-            button.style.background = "#28a745";
-
-            setTimeout(() => {
-                button.innerHTML = originalText;
-                button.style.background = "#007bff";
-            }, 2000);
-        }
-
-        // Countdown
-        function updateCountdown() {
-            const countdownElement = document.getElementById("countdown");
-            const expirationTime = parseInt(countdownElement.getAttribute("data-expiration"));
-            const currentTime = Math.floor(Date.now() / 1000);
-            const remainingSeconds = Math.max(0, expirationTime - currentTime);
-
-            if (remainingSeconds <= 0) {
-                countdownElement.innerHTML = langOrderExpired;
-                countdownElement.style.color = "#dc3545";
-                clearInterval(countdownInterval);
-                return;
-            }
-
-            const minutes = Math.floor(remainingSeconds / 60);
-            const seconds = remainingSeconds % 60;
-            countdownElement.innerHTML = String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
-
-            // Turn red when less than 5 minutes
-            if (remainingSeconds < 300) {
-                countdownElement.style.color = "#dc3545";
-            }
-        }
-
-        // Check payment status
-        function checkPaymentStatus() {
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = "<i class=\"fas fa-spinner fa-spin\"></i> " + langChecking;
-            button.disabled = true;
-
-            // AJAX status check
-            fetch(window.location.href + "?act=check_status&trade_id=" + encodeURIComponent(tradeId), {
-                method: "GET"
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.data && data.data.status === 1) {
-                    // Paid, redirect
-                    window.location.href = "' . $params['returnurl'] . '";
-                } else {
-                    // Not paid
-                    button.innerHTML = originalText;
-                    button.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error("Failed to check payment status:", error);
-                button.innerHTML = originalText;
-                button.disabled = false;
-            });
-        }
-
-        // Start countdown
-        updateCountdown();
-        countdownInterval = setInterval(updateCountdown, 1000);
-
-        // Auto-check payment status every 30 seconds
-        setInterval(() => {
-            checkPaymentStatus();
-        }, 30000);
-    </script>
-
-    <style>
-        @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css");
-
-        .coinpay-payment-page button:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-
-        .coinpay-payment-page button:active {
-            transform: translateY(0);
-        }
-
-        .coinpay-payment-page input[readonly] {
-            cursor: pointer;
-        }
-
-        .coinpay-payment-page input[readonly]:focus {
-            background: #e3f2fd;
-        }
-    </style>';
-
-	return $html;
 }
