@@ -125,11 +125,23 @@ function polypay_render_api_payment($params)
 		return '<div class="alert alert-success">' . polypay_lang('invoice_already_paid') . '</div>';
 	}
 
-	if (!polypay_is_checkout_submit($params)) {
+	if (!polypay_is_checkout_submit($params) && !polypay_is_addfunds_redirect()) {
 		return polypay_render_checkout_button($params);
 	}
 
 	return polypay_render_hosted_checkout($params);
+}
+
+/**
+ * Detect the WHMCS Add Funds pending page.
+ *
+ * 充值流程中 WHMCS 创建发票后停留在 clientarea.php?action=addfunds 的中转页
+ * （提示"正在跳转到支付页面"），此时用户已明确发起支付，直接跳转 Hosted
+ * Checkout，无需再点一次支付按钮。
+ */
+function polypay_is_addfunds_redirect()
+{
+	return ($_REQUEST['action'] ?? '') === 'addfunds';
 }
 
 /**
@@ -149,7 +161,10 @@ function polypay_is_checkout_submit($params)
  */
 function polypay_render_checkout_button($params)
 {
-	$action = htmlspecialchars($_SERVER['REQUEST_URI'] ?? $params['returnurl'], ENT_QUOTES);
+	// 固定提交到发票页：addfunds 等中转页的 REQUEST_URI 收到 POST 后会重新渲染
+	// 原页面（如充值表单），导致永远走不到 checkout 分支；发票页则总是会渲染网关代码
+	$invoiceIdRaw = (int)($params['invoiceid'] ?? 0);
+	$action = htmlspecialchars(rtrim($params['systemurl'], '/') . '/viewinvoice.php?id=' . $invoiceIdRaw, ENT_QUOTES);
 	$invoiceId = htmlspecialchars((string)($params['invoiceid'] ?? ''), ENT_QUOTES);
 	$amount = htmlspecialchars((string)($params['amount'] ?? '0'), ENT_QUOTES);
 	$currency = htmlspecialchars((string)($params['currency'] ?? ''), ENT_QUOTES);
