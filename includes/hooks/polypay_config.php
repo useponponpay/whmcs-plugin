@@ -154,7 +154,7 @@ if (!function_exists('polypay_get_api_url')) {
 	function polypay_get_api_url()
 	{
 		return 'https://api.polypay.ai';
-		// return 'http://127.0.0.1:11050';
+		// return 'http://127.0.0.1:12050';
 	}
 }
 

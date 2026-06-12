@@ -36,11 +36,12 @@ if (!function_exists('polypay_safe_log')) {
 function polypay_MetaData()
 {
 	return array(
-		'DisplayName' => polypay_lang('gateway_name'),
+		// 网关名称为品牌名，不做本地化（FriendlyName 会持久化进数据库，按客户语言翻译会导致后台显示错乱）
+		'DisplayName' => 'PolyPay - Crypto Payment Gateway',
 		'APIVersion' => '2.0',
 		'DisableLocalCreditCardInput' => true,
 		'TokenisedStorage' => false,
-		'Description' => polypay_lang('gateway_description'),
+		'Description' => 'Professional crypto payment gateway supporting USDT and more across Tron, Ethereum, Polygon, Solana and other chains.',
 		'Author' => 'PolyPay Engineering Team',
 		'Version' => '2.0.0',
 		'TestMode' => true,
@@ -57,7 +58,7 @@ function polypay_config()
 	return [
 		'FriendlyName' => [
 			'Type' => 'System',
-			'Value' => polypay_lang('friendly_name'),
+			'Value' => 'PolyPay - Crypto Payment Gateway',
 		],
 		'api_key' => [
 			'FriendlyName' => 'API Key',
