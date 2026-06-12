@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 API 자격 증명',
     'config_api_key_desc' => '판매자 콘솔에 로그인하여 <strong>"API 키"</strong> 페이지에서 API 키를 복사하세요.',
+    'config_mch_id_desc' => '판매자 ID(예: MCH17790986189696), 판매자 콘솔에서 복사하세요. 판매자 주문번호의 짧은 접두사로 사용되며, 비워두면 API 키에서 파생된 식별자가 사용됩니다.',
     'config_credentials_validated' => '저장 시 자격 증명이 자동으로 검증됩니다.',
     'config_wallet_setup' => '⚙️ 지갑 및 결제 설정',
     'config_wallets' => '지갑',

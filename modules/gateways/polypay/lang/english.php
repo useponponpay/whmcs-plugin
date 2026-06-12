@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 API Credentials',
     'config_api_key_desc' => 'Sign in to the merchant console and copy the API Key from the <strong>"API Keys"</strong> page.',
+    'config_mch_id_desc' => 'Merchant ID (e.g. MCH17790986189696), copy it from the merchant console. Used as a short prefix of the merchant order number; falls back to an API Key derived identifier when empty.',
     'config_credentials_validated' => 'Credentials will be validated automatically on save.',
     'config_wallet_setup' => '⚙️ Wallet & Payment Setup',
     'config_wallets' => 'Wallets',

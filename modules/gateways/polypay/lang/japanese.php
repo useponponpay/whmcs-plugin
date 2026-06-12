@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 API認証情報',
     'config_api_key_desc' => 'マーチャントコンソールにログインし、<strong>「APIキー」</strong>ページからAPIキーをコピーしてください。',
+    'config_mch_id_desc' => 'マーチャントID（例：MCH17790986189696）。マーチャントコンソールからコピーしてください。マーチャント注文番号の短いプレフィックスとして使用されます。未入力の場合はAPIキーから生成された識別子を使用します。',
     'config_credentials_validated' => '保存時に認証情報が自動的に検証されます。',
     'config_wallet_setup' => '⚙️ ウォレットと決済設定',
     'config_wallets' => 'ウォレット',

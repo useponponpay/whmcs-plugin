@@ -2,14 +2,14 @@
 /**
  * PolyPay WHMCS Callback Handler
  *
- * 处理来自PolyPay系统的支付回调通知
+ * Handles payment callback notifications from the PolyPay system
  *
- * @author PolyPay开发团队
+ * @author PolyPay Engineering Team
  * @version 2.0.0
  */
 
 /**
- * 定位 WHMCS 根目录（兼容软链接部署）。
+ * Locate the WHMCS root directory (compatible with symlinked deployments).
  */
 function polypay_resolve_whmcs_root()
 {
@@ -42,15 +42,15 @@ require_once $whmcsRoot . '/init.php';
 require_once $whmcsRoot . '/includes/gatewayfunctions.php';
 require_once $whmcsRoot . '/includes/invoicefunctions.php';
 
-// 引入配置文件以确保 polypay_get_api_url 函数可用
+// Include the config file to ensure the polypay_get_api_url function is available
 if (file_exists($whmcsRoot . '/includes/hooks/polypay_config.php')) {
     require_once $whmcsRoot . '/includes/hooks/polypay_config.php';
 }
 
-# 注释掉Capsule，使用传统方法
+# Capsule is commented out; use the traditional approach instead
 
 /**
- * 映射网络名称到后端枚举
+ * Map network names to backend enum values
  */
 function mapNetworkToBE($network)
 {
@@ -69,7 +69,7 @@ function mapNetworkToBE($network)
 }
 
 /**
- * 调用后端API
+ * Call the backend API
  */
 function callBackendAPI($url, $data, $apiKey)
 {
@@ -109,13 +109,33 @@ function callBackendAPI($url, $data, $apiKey)
 }
 
 /**
- * 从回调 order_no 解析发票ID。
- * 优先解析 WHMCS_{invoiceId}_{hash}，若不匹配则回查后端订单详情。
+ * Parse the WHMCS invoice ID directly from the merchant order number.
+ * Supported formats:
+ *  - A{shortened merchant ID}_{invoiceId}     new format, e.g. A189696_123
+ *    (first letter is the source identifier: P = PolyPay platform; plugins in order: A = WHMCS, B = WordPress, C = Shopify)
+ *  - WHMCS_{invoiceId}_{hash}      legacy format, kept for historical order compatibility
+ */
+function parseInvoiceIdFromOrderNo($orderNo)
+{
+    if (preg_match('/^A[A-Za-z0-9]+_(\d+)$/', $orderNo, $matches)) {
+        return (int)$matches[1];
+    }
+    if (preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $orderNo, $matches)) {
+        return (int)$matches[1];
+    }
+
+    return 0;
+}
+
+/**
+ * Resolve the invoice ID from the callback order_no.
+ * Prefer parsing the order number format directly; if it does not match, look up the order details from the backend.
  */
 function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
 {
-    if (preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $orderNo, $matches)) {
-        return (int)$matches[1];
+    $invoiceId = parseInvoiceIdFromOrderNo($orderNo);
+    if ($invoiceId > 0) {
+        return $invoiceId;
     }
 
     $apiKey = trim((string)($gatewayParams['api_key'] ?? ''));
@@ -134,8 +154,11 @@ function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
         try {
             $resp = callBackendAPI($detailUrl, $payload, $apiKey);
             $mchOrderId = $resp['data']['mch_order_id'] ?? '';
-            if (is_string($mchOrderId) && preg_match('/^WHMCS_(\d+)_[a-zA-Z0-9]+$/', $mchOrderId, $matches)) {
-                return (int)$matches[1];
+            if (is_string($mchOrderId)) {
+                $invoiceId = parseInvoiceIdFromOrderNo($mchOrderId);
+                if ($invoiceId > 0) {
+                    return $invoiceId;
+                }
             }
         } catch (Throwable $e) {
             error_log("[PolyPay Callback] 订单回查失败(" . json_encode($payload, JSON_UNESCAPED_UNICODE) . "): " . $e->getMessage());
@@ -145,10 +168,10 @@ function resolveInvoiceIdFromOrderNo($orderNo, $gatewayParams)
     return 0;
 }
 
-// polypay_get_api_url 函数已移至 includes/hooks/polypay_config.php
+// The polypay_get_api_url function has been moved to includes/hooks/polypay_config.php
 
 /**
- * 验证回调来源和签名
+ * Validate the callback origin and signature
  */
 function validateCallback($data, $secret)
 {
@@ -166,7 +189,7 @@ function validateCallback($data, $secret)
 }
 
 /**
- * 记录回调日志
+ * Log the callback
  */
 function logCallback($data, $message = 'Callback received')
 {
@@ -176,7 +199,7 @@ function logCallback($data, $message = 'Callback received')
 }
 
 /**
- * 兼容不同运行环境获取请求头，避免 getallheaders 不存在导致 Fatal Error。
+ * Get request headers in a way compatible with different runtime environments, avoiding a Fatal Error when getallheaders does not exist.
  */
 function getRequestHeadersSafe()
 {
@@ -200,7 +223,7 @@ function getRequestHeadersSafe()
 }
 
 /**
- * 校验并消费 nonce（防重放，5分钟窗口）。
+ * Validate and consume the nonce (anti-replay, 5-minute window).
  */
 function consumeCallbackNonce($nonce, $timestamp)
 {
@@ -235,7 +258,7 @@ function consumeCallbackNonce($nonce, $timestamp)
 }
 
 /**
- * 计算回调签名（HMAC-SHA256）。
+ * Compute the callback signature (HMAC-SHA256).
  */
 function buildCallbackSignature($timestamp, $nonce, $rawBody, $apiKey)
 {
@@ -245,10 +268,10 @@ function buildCallbackSignature($timestamp, $nonce, $rawBody, $apiKey)
 }
 
 /**
- * 主要回调处理逻辑
+ * Main callback handling logic
  */
 try {
-    // 获取回调数据
+    // Get the callback data
     $input = file_get_contents('php://input');
     error_log("[PolyPay Callback] ==================== 新回调请求 ====================");
     error_log("[PolyPay Callback] 原始输入: " . $input);
@@ -259,7 +282,7 @@ try {
     error_log("[PolyPay Callback] JSON 解析结果: " . ($data ? 'SUCCESS' : 'FAILED'));
 
     if (!$data) {
-        // 如果不是JSON，尝试从POST获取
+        // If it is not JSON, try to get the data from POST
         error_log("[PolyPay Callback] JSON 解析失败，尝试使用 POST 数据");
         $data = $_POST;
         error_log("[PolyPay Callback] POST 数据: " . json_encode($_POST, JSON_UNESCAPED_UNICODE));
@@ -267,14 +290,14 @@ try {
         error_log("[PolyPay Callback] 解析后的数据: " . json_encode($data, JSON_UNESCAPED_UNICODE));
     }
 
-    // 记录回调日志（包含原始输入用于调试）
+    // Log the callback (including the raw input for debugging)
     logCallback([
         'raw_input' => $input,
         'parsed_data' => $data,
         'post_data' => $_POST
     ], 'Payment callback received');
 
-    // 验证必要字段
+    // Validate required fields
     error_log("[PolyPay Callback] 开始验证必要字段...");
     error_log("[PolyPay Callback] order_no: " . ($data['order_no'] ?? '【缺失】'));
     error_log("[PolyPay Callback] status: " . ($data['status'] ?? '【缺失】'));
@@ -294,13 +317,13 @@ try {
     }
     error_log("[PolyPay Callback] ✅ 必要字段验证通过");
 
-    // 从订单号中提取发票ID
-    // 主格式: WHMCS_{invoice_id}_{hash}
-    // 兼容格式: 非 WHMCS 格式时回查后端订单详情解析 mch_order_id
+    // Extract the invoice ID from the order number
+    // Primary format: A{shortened merchant ID}_{invoice_id}; legacy format WHMCS_{invoice_id}_{hash} is also supported
+    // Fallback: when neither matches, look up the order details from the backend and parse mch_order_id
     error_log("[PolyPay Callback] 开始验证订单号格式...");
     error_log("[PolyPay Callback] 订单号: " . $data['order_no']);
 
-    // 获取网关配置（后续签名验证和回查都需要）
+    // Get the gateway configuration (needed for subsequent signature validation and order lookup)
     error_log("[PolyPay Callback] 获取网关配置...");
     $gatewayParams = getGatewayVariables('polypay');
     if (!$gatewayParams['type']) {
@@ -314,12 +337,12 @@ try {
     $invoiceId = resolveInvoiceIdFromOrderNo($data['order_no'], $gatewayParams);
     if ($invoiceId <= 0) {
         error_log("[PolyPay Callback] ❌ 订单号格式错误");
-        error_log("[PolyPay Callback] 期望格式: WHMCS_{invoice_id}_{hash} 或可回查到对应 mch_order_id");
+        error_log("[PolyPay Callback] 期望格式: A{mch}_{invoice_id} / WHMCS_{invoice_id}_{hash} 或可回查到对应 mch_order_id");
         error_log("[PolyPay Callback] 实际格式: " . $data['order_no']);
         logCallback([
             'error' => 'Invalid order number format',
             'order_no' => $data['order_no'],
-            'expected_format' => 'WHMCS_{invoice_id}_{hash} or resolvable to mch_order_id'
+            'expected_format' => 'A{mch}_{invoice_id} / WHMCS_{invoice_id}_{hash} or resolvable to mch_order_id'
         ], 'Invalid order number format');
         http_response_code(400);
         echo 'Invalid order number format: ' . $data['order_no'];
@@ -328,7 +351,7 @@ try {
 
     error_log("[PolyPay Callback] ✅ 订单号格式正确，提取到发票ID: " . $invoiceId);
 
-    // 严格回调鉴权：签名 + 时间戳 + nonce，不再兼容旧 API Key 直比逻辑。
+    // Strict callback authentication: signature + timestamp + nonce; the legacy direct API Key comparison is no longer supported.
     $expectedApiKey = trim((string)($gatewayParams['api_key'] ?? ''));
     $receivedPrefix = $_SERVER['HTTP_X_KEY_PREFIX'] ?? '';
     $receivedTimestamp = $_SERVER['HTTP_X_TIMESTAMP'] ?? '';
@@ -402,7 +425,7 @@ try {
 
     error_log("[PolyPay Callback] ✅ 签名验证通过");
     
-    // 检查发票是否存在
+    // Check whether the invoice exists
     error_log("[PolyPay Callback] 检查发票是否存在: " . $invoiceId);
     $invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
     if ($invoice['result'] !== 'success') {
@@ -413,46 +436,46 @@ try {
     }
     error_log("[PolyPay Callback] ✅ 发票存在，当前状态: " . $invoice['status']);
 
-    // 检查发票状态
+    // Check the invoice status
     if (strtolower($invoice['status']) === 'paid') {
         error_log("[PolyPay Callback] ⚠️ 发票已支付，跳过处理");
-        echo 'OK'; // 已经支付过了
+        echo 'OK'; // Already paid
         exit;
     }
 
-    // 处理不同的支付状态
-    // 支持数字状态码：1-等待支付，2-支付成功，3-已过期，4-取消支付，5-人工充值
+    // Handle the different payment statuses
+    // Supported numeric status codes: 1 = pending payment, 2 = payment successful, 3 = expired, 4 = payment cancelled, 5 = manual top-up
     error_log("[PolyPay Callback] 处理支付状态: " . $data['status']);
     
     $status = $data['status'];
-    // 如果是字符串状态，转为小写
+    // If the status is a string, convert it to lowercase
     if (!is_numeric($status)) {
         $status = strtolower($status);
     }
     
     switch ($status) {
-        // 数字状态码
-        case 1: // 等待支付
+        // Numeric status codes
+        case 1: // Pending payment
         case '1':
             error_log("[PolyPay Callback] 📝 处理等待支付状态 (状态码: 1)");
             handlePendingPayment($invoiceId, $data);
             break;
 
-        case 2: // 支付成功
-        case 5: // 人工充值
+        case 2: // Payment successful
+        case 5: // Manual top-up
         case '2':
         case '5':
             error_log("[PolyPay Callback] 📝 处理支付成功状态 (状态码: {$status})");
             handleSuccessfulPayment($invoiceId, $data, $gatewayParams);
             break;
 
-        case 3: // 已过期
+        case 3: // Expired
         case '3':
             error_log("[PolyPay Callback] 📝 处理支付过期状态 (状态码: 3)");
             handleExpiredPayment($invoiceId, $data);
             break;
 
-        case 4: // 取消支付
+        case 4: // Payment cancelled
         case '4':
             error_log("[PolyPay Callback] 📝 处理支付取消状态 (状态码: 4)");
             handleFailedPayment($invoiceId, $data);
@@ -491,7 +514,7 @@ try {
 }
 
 /**
- * 处理支付成功
+ * Handle a successful payment
  */
 function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
 {
@@ -500,12 +523,12 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
     error_log("[PolyPay Callback] 交易哈希: " . ($data['tx_hash'] ?? $data['transaction_id'] ?? 'N/A'));
     
     try {
-        // 验证支付金额
+        // Validate the payment amount
         $invoiceData = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
         $expectedAmount = floatval($invoiceData['total']);
         error_log("[PolyPay Callback] 发票应付金额: " . $expectedAmount . " " . $invoiceData['currencycode']);
 
-        // 添加发票支付记录（订单已在后端创建，这里只需要标记 WHMCS 发票为已支付）
+        // Add the invoice payment record (the order was already created on the backend; here we only mark the WHMCS invoice as paid)
         error_log("[PolyPay Callback] 添加发票支付记录...");
         $transactionId = $data['transaction_id'] ?? $data['tx_hash'] ?? $data['order_no'];
         error_log("[PolyPay Callback] 交易ID: " . $transactionId);
@@ -514,21 +537,21 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
             $invoiceId,
             $transactionId,
             $expectedAmount,
-            0, // 无手续费
+            0, // No transaction fee
             'polypay'
         );
 
         error_log("[PolyPay Callback] ✅ 发票支付记录已添加");
         logCallback($data, 'Payment successful for invoice: ' . $invoiceId);
 
-        // 发送支付成功邮件（可选）
+        // Send the payment confirmation email (optional)
         if (!empty($gatewayParams['send_email'])) {
             sendPaymentConfirmationEmail($invoiceId);
         }
 
     } catch (Throwable $e) {
         $message = $e->getMessage();
-        // 幂等容错：重复交易或已支付视为成功，避免回调重试风暴。
+        // Idempotent tolerance: treat duplicate transactions or already-paid invoices as success to avoid callback retry storms.
         if (stripos($message, 'Duplicate Transaction ID') !== false
             || stripos($message, 'already exists') !== false
             || stripos($message, 'already paid') !== false) {
@@ -546,56 +569,56 @@ function handleSuccessfulPayment($invoiceId, $data, $gatewayParams)
 }
 
 /**
- * 处理支付失败
+ * Handle a failed payment
  */
 function handleFailedPayment($invoiceId, $data)
 {
     error_log("[PolyPay Callback] 处理支付失败，发票ID: " . $invoiceId);
     logCallback($data, 'Payment failed for invoice: ' . $invoiceId);
     
-    // WHMCS 发票保持未支付状态，不需要额外处理
-    // 后端订单状态由后端系统自行管理，回调无需更新
+    // The WHMCS invoice remains unpaid; no extra handling is needed
+    // The backend order status is managed by the backend system itself; the callback does not need to update it
 }
 
 /**
- * 处理支付过期
+ * Handle an expired payment
  */
 function handleExpiredPayment($invoiceId, $data)
 {
     error_log("[PolyPay Callback] 处理支付过期，发票ID: " . $invoiceId);
     logCallback($data, 'Payment expired for invoice: ' . $invoiceId);
     
-    // WHMCS 发票保持未支付状态，不需要额外处理
-    // 后端订单状态由后端系统自行管理，回调无需更新
+    // The WHMCS invoice remains unpaid; no extra handling is needed
+    // The backend order status is managed by the backend system itself; the callback does not need to update it
 }
 
 /**
- * 处理等待中的支付
+ * Handle a pending payment
  */
 function handlePendingPayment($invoiceId, $data)
 {
     error_log("[PolyPay Callback] 处理等待支付，发票ID: " . $invoiceId);
     logCallback($data, 'Payment pending for invoice: ' . $invoiceId);
     
-    // WHMCS 发票保持未支付状态，等待后续支付完成回调
-    // 后端订单状态由后端系统自行管理，回调无需更新
+    // The WHMCS invoice remains unpaid, waiting for the subsequent payment completion callback
+    // The backend order status is managed by the backend system itself; the callback does not need to update it
 }
 
-// 注：以下后端订单创建和状态更新函数已废弃
-// 订单应在创建支付时已在后端创建，回调仅用于更新 WHMCS 发票状态
-// 后端订单状态由后端系统自行管理，无需通过回调更新
+// Note: the backend order creation and status update functions below are deprecated
+// Orders should already be created on the backend when the payment is created; the callback is only used to update the WHMCS invoice status
+// The backend order status is managed by the backend system itself and does not need to be updated via the callback
 
 
 /**
- * 发送支付确认邮件
+ * Send the payment confirmation email
  */
 function sendPaymentConfirmationEmail($invoiceId)
 {
     try {
-        // 这里可以自定义邮件发送逻辑
-        // WHMCS会自动发送默认的支付确认邮件
+        // Custom email sending logic can be added here
+        // WHMCS automatically sends the default payment confirmation email
 
-        // 如果需要自定义邮件，可以使用以下代码：
+        // If a custom email is needed, the following code can be used:
         /*
         $invoice = mysql_fetch_array(mysql_query("SELECT * FROM tblinvoices WHERE id = '{$invoiceId}'"));
         $client = mysql_fetch_array(mysql_query("SELECT * FROM tblclients WHERE id = '{$invoice['userid']}'"));

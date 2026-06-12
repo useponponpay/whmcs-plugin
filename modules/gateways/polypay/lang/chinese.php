@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 API 凭证',
     'config_api_key_desc' => '登录商户控制台，从 <strong>"API 密钥"</strong> 页面复制 API Key。',
+    'config_mch_id_desc' => '商户号（如 MCH17790986189696），从商户控制台复制。用作商户订单号的精简前缀；不填时使用 API Key 派生的标识。',
     'config_credentials_validated' => '保存时将自动验证凭证。',
     'config_wallet_setup' => '⚙️ 钱包和支付设置',
     'config_wallets' => '钱包',

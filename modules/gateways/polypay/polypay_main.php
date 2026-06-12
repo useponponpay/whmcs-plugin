@@ -36,7 +36,7 @@ if (!function_exists('polypay_safe_log')) {
 function polypay_MetaData()
 {
 	return array(
-		// 网关名称为品牌名，不做本地化（FriendlyName 会持久化进数据库，按客户语言翻译会导致后台显示错乱）
+		// The gateway name is a brand name and is not localized (FriendlyName is persisted to the database; translating it per client language would garble the admin display)
 		'DisplayName' => 'PolyPay - Crypto Payment Gateway',
 		'APIVersion' => '2.0',
 		'DisableLocalCreditCardInput' => true,
@@ -59,6 +59,12 @@ function polypay_config()
 		'FriendlyName' => [
 			'Type' => 'System',
 			'Value' => 'PolyPay - Crypto Payment Gateway',
+		],
+		'mch_id' => [
+			'FriendlyName' => 'Merchant ID',
+			'Type' => 'text',
+			'Size' => '32',
+			'Description' => polypay_lang('config_mch_id_desc'),
 		],
 		'api_key' => [
 			'FriendlyName' => 'API Key',
@@ -114,8 +120,9 @@ function polypay_link(array $params)
 /**
  * Render API-based payment.
  *
- * 不再使用插件内部的支付方式选择页，统一跳转到 payment-frontend 的
- * Hosted Checkout 页面，由前端完成支付方式的选择与支付。
+ * The plugin's internal payment method selection page is no longer used;
+ * instead, always redirect to the payment-frontend Hosted Checkout page,
+ * where the frontend handles payment method selection and payment.
  */
 function polypay_render_api_payment($params)
 {
@@ -135,9 +142,11 @@ function polypay_render_api_payment($params)
 /**
  * Detect the WHMCS Add Funds pending page.
  *
- * 充值流程中 WHMCS 创建发票后停留在 clientarea.php?action=addfunds 的中转页
- * （提示"正在跳转到支付页面"），此时用户已明确发起支付，直接跳转 Hosted
- * Checkout，无需再点一次支付按钮。
+ * In the Add Funds flow, after WHMCS creates the invoice it stays on the
+ * clientarea.php?action=addfunds interstitial page (showing "redirecting to
+ * the payment page"). At this point the user has explicitly initiated payment,
+ * so redirect straight to Hosted Checkout without requiring another click on
+ * the payment button.
  */
 function polypay_is_addfunds_redirect()
 {
@@ -161,8 +170,9 @@ function polypay_is_checkout_submit($params)
  */
 function polypay_render_checkout_button($params)
 {
-	// 固定提交到发票页：addfunds 等中转页的 REQUEST_URI 收到 POST 后会重新渲染
-	// 原页面（如充值表单），导致永远走不到 checkout 分支；发票页则总是会渲染网关代码
+	// Always submit to the invoice page: interstitial pages such as addfunds re-render
+	// the original page (e.g. the add-funds form) when their REQUEST_URI receives a POST,
+	// so the checkout branch would never be reached; the invoice page always renders the gateway code
 	$invoiceIdRaw = (int)($params['invoiceid'] ?? 0);
 	$action = htmlspecialchars(rtrim($params['systemurl'], '/') . '/viewinvoice.php?id=' . $invoiceIdRaw, ENT_QUOTES);
 	$invoiceId = htmlspecialchars((string)($params['invoiceid'] ?? ''), ENT_QUOTES);
@@ -186,29 +196,50 @@ function polypay_render_checkout_button($params)
 }
 
 /**
+ * Build the stable merchant order number for a WHMCS invoice.
+ *
+ * Format: A{shortened merchant ID}_{invoiceid}, e.g. A189696_123.
+ * The first letter is the order source identifier: P = PolyPay platform,
+ * with plugins assigned in order: A = WHMCS, B = WordPress (WooCommerce),
+ * C = Shopify, and so on.
+ * Merchant ID shortening rule: strip the MCH prefix and take the last 6
+ * characters; when no merchant ID is configured, fall back to a stable
+ * 6-character identifier derived from the API Key, ensuring the order
+ * number for the same invoice is idempotent.
+ */
+function polypay_build_order_no($params)
+{
+	$mchId = strtoupper(trim((string)($params['mch_id'] ?? '')));
+	$mchShort = substr((string)preg_replace('/^MCH/', '', $mchId), -6);
+	if ($mchShort === '' || $mchShort === false) {
+		$mchShort = strtoupper(substr(md5((string)($params['api_key'] ?? '')), 0, 6));
+	}
+
+	return 'A' . $mchShort . '_' . $params['invoiceid'];
+}
+
+/**
  * Build the hosted checkout URL via backend and render a redirect page.
  *
- * 调用后端 /order/checkout 接口（不传 currency/network），获取 payment-frontend
- * 的 Hosted Checkout 跳转链接，再由浏览器跳转到该页面进行支付方式选择。
+ * Call the backend /order/checkout endpoint (without currency/network) to get
+ * the payment-frontend Hosted Checkout redirect URL, then let the browser
+ * redirect to that page for payment method selection.
  */
 function polypay_render_hosted_checkout($params)
 {
 	try {
-		// 生成稳定的商户订单号，保证后端去重以及回调能解析出发票ID
-		// 格式：WHMCS_{invoiceid}_{8位hash}
-		$hashSource = $params['api_key'] . '_' . $params['invoiceid'];
-		$hash = substr(md5($hashSource), 0, 8);
-		$orderNo = 'WHMCS_' . $params['invoiceid'] . '_' . $hash;
+		// Generate a stable merchant order number so the backend can deduplicate and the callback can resolve the invoice ID
+		$orderNo = polypay_build_order_no($params);
 
-		// 回调与支付完成跳转地址（均使用 WHMCS 系统URL）
+		// Callback and post-payment redirect URLs (both based on the WHMCS system URL)
 		$systemUrl = rtrim($params['systemurl'], '/');
 		$notifyUrl = $systemUrl . '/modules/gateways/callback/polypay.php';
 		$redirectUrl = $params['returnurl'];
 
-		// 金额换算：发票金额 / 汇率（无汇率时按 1:1）
+		// Amount conversion: invoice amount / exchange rate (1:1 when no rate is set)
 		$amount = floatval($params['amount']) / floatval($params['exchange_rate'] ?: 1.0);
 
-		// 不传 currency/network，让 payment-frontend 展示支付方式选择页
+		// Omit currency/network so payment-frontend shows the payment method selection page
 		$checkoutData = [
 			'mch_order_id' => $orderNo,
 			'amount'       => $amount,
@@ -222,7 +253,7 @@ function polypay_render_hosted_checkout($params)
 		$apiUrl = polypay_get_api_url();
 		$response = polypay_call_api($apiUrl . '/api/v1/pay/sdk/order/checkout', $checkoutData, $params['api_key']);
 
-		// 兼容 checkout_url / payment_url 两个返回字段
+		// Support both checkout_url and payment_url response fields
 		$checkoutUrl = $response['data']['checkout_url'] ?? ($response['data']['payment_url'] ?? '');
 		if (empty($checkoutUrl)) {
 			throw new Exception($response['message'] ?? polypay_lang('failed_create_order'));
@@ -251,8 +282,9 @@ function polypay_render_hosted_checkout($params)
 /**
  * Render a page that redirects the buyer to the hosted checkout page.
  *
- * 展示一个带加载动画的过渡页，并自动跳转到 payment-frontend 的支付方式选择页；
- * 同时提供按钮作为兜底（避免浏览器拦截自动跳转）。
+ * Shows a transition page with a loading animation and automatically redirects
+ * to the payment-frontend payment method selection page; also provides a button
+ * as a fallback (in case the browser blocks the automatic redirect).
  */
 function polypay_render_checkout_redirect($checkoutUrl)
 {
@@ -278,7 +310,7 @@ function polypay_render_checkout_redirect($checkoutUrl)
     <script>
     (function () {
         var target = ' . json_encode($checkoutUrl) . ';
-        // 自动跳转到 payment-frontend 的支付方式选择页
+        // Automatically redirect to the payment-frontend payment method selection page
         setTimeout(function () {
             window.location.href = target;
         }, 800);
@@ -289,7 +321,7 @@ function polypay_render_checkout_redirect($checkoutUrl)
 /**
  * Map the current WHMCS language to a payment-frontend locale code.
  *
- * @return string payment-frontend 的语言路径（zh/en/ja...），默认 en
+ * @return string payment-frontend locale path (zh/en/ja...), defaults to en
  */
 function polypay_get_checkout_locale()
 {

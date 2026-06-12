@@ -9,11 +9,11 @@ if (!defined("WHMCS")) {
     die("This file cannot be accessed directly");
 }
 
-// 加载文件夹内的主要实现
+// Load the main implementation inside the folder
 require_once __DIR__ . '/polypay/polypay_main.php';
 
-// 加载API客户端
+// Load the API client
 require_once __DIR__ . '/polypay/lib/PolyPayApi.php';
 
-// 注意：所有的 polypay_* 函数都在 polypay_main.php 中定义
-// 这个文件只是作为入口点，保持WHMCS的兼容性
+// Note: all polypay_* functions are defined in polypay_main.php
+// This file serves only as the entry point, keeping WHMCS compatibility

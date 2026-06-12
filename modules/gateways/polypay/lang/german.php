@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 API-Zugangsdaten',
     'config_api_key_desc' => 'Melden Sie sich in der Händlerkonsole an und kopieren Sie den API-Schlüssel von der Seite <strong>"API-Schlüssel"</strong>.',
+    'config_mch_id_desc' => 'Händler-ID (z. B. MCH17790986189696), aus der Händlerkonsole kopieren. Wird als kurzes Präfix der Händler-Bestellnummer verwendet; ohne Angabe wird eine aus dem API-Schlüssel abgeleitete Kennung verwendet.',
     'config_credentials_validated' => 'Die Zugangsdaten werden beim Speichern automatisch validiert.',
     'config_wallet_setup' => '⚙️ Wallet- und Zahlungseinrichtung',
     'config_wallets' => 'Wallets',

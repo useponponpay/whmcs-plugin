@@ -20,6 +20,7 @@ $_POLYPAY_LANG = [
     // Config descriptions
     'config_api_credentials' => '🔐 Credenciales API',
     'config_api_key_desc' => 'Inicie sesión en la consola del comerciante y copie la clave API de la página <strong>"Claves API"</strong>.',
+    'config_mch_id_desc' => 'ID de comerciante (p. ej. MCH17790986189696), cópielo desde la consola del comerciante. Se usa como prefijo corto del número de pedido del comerciante; si está vacío se usa un identificador derivado de la clave API.',
     'config_credentials_validated' => 'Las credenciales se validarán automáticamente al guardar.',
     'config_wallet_setup' => '⚙️ Configuración de Billetera y Pago',
     'config_wallets' => 'Billeteras',
