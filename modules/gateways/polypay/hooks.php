@@ -73,18 +73,3 @@ add_hook('AdminAreaHeadOutput', 1, function ($vars) {
         </script>';
 	}
 });
-
-/**
- * 下单后自动跳转到发票支付页面（避免停留在 Order Confirmation 页面）
- */
-add_hook('AfterShoppingCartCheckout', 1, function ($vars) {
-	$invoiceId = $vars['InvoiceID'] ?? 0;
-
-	if (!empty($invoiceId)) {
-		$invoice = localAPI('GetInvoice', ['invoiceid' => $invoiceId]);
-		if ($invoice['result'] === 'success' && $invoice['paymentmethod'] === 'polypay') {
-			header('Location: viewinvoice.php?id=' . $invoiceId);
-			exit;
-		}
-	}
-});
