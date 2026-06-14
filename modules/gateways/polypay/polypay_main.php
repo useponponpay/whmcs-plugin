@@ -50,6 +50,26 @@ function polypay_MetaData()
 	);
 }
 
+function polypay_get_plugin_version()
+{
+	$metadata = polypay_MetaData();
+	return isset($metadata['Version']) ? (string) $metadata['Version'] : '';
+}
+
+function polypay_get_platform_version()
+{
+	if (defined('WHMCS_VERSION')) {
+		return (string) WHMCS_VERSION;
+	}
+	if (defined('WHMCS\\Application::FILES_VERSION')) {
+		return (string) constant('WHMCS\\Application::FILES_VERSION');
+	}
+	if (isset($GLOBALS['CONFIG']['Version'])) {
+		return (string) $GLOBALS['CONFIG']['Version'];
+	}
+	return '';
+}
+
 /**
  * Define gateway configuration options.
  */
@@ -398,7 +418,9 @@ function polypay_plugin_activate($params)
 		$response = polypay_call_api(
 			$apiUrl . '/api/v1/pay/sdk/plugin/activate',
 			[
-				'plugin_type' => 'whmcs'
+				'plugin_type' => 'whmcs',
+				'plugin_version' => polypay_get_plugin_version(),
+				'platform_version' => polypay_get_platform_version()
 			],
 			$params['api_key']
 		);
